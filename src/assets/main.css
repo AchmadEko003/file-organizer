@@ -2,6 +2,6 @@
 @import "@nuxt/ui";
 
 :root {
-    --ui-bg: var(--color-slate-300);
+    --ui-bg: var(--color-slate-100);
     /* --ui-text: var(--color-gray-900); */
 }

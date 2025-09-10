@@ -1,11 +1,13 @@
 <template>
-    <div class="min-h-screen bg-gray-50">
+    <div class="min-h-screen">
         <!-- Browser Card -->
         <div class="p-3">
             <!-- Path Input Section -->
-            <div class="mb-6">
+            <div class="pb-6 pt-3 bg-slate-100">
                 <div class="flex w-full gap-3">
-                    <UInput v-model="selectedPath" size="lg" placeholder="Select a folder to browse..."
+                    <UInput :ui="{
+                        base: 'bg-white font-bold text-gray-700'
+                    }" v-model="selectedPath" size="lg" placeholder="Select a folder to browse..."
                         class="rounded-xl w-full">
                         <template #leading>
                             <UIcon name="i-heroicons-folder" class="w-5 h-5 text-gray-400" />
@@ -16,7 +18,8 @@
                         </template>
                     </UInput>
 
-                    <UButton @click="browse" size="lg" class="px-6 rounded-xl">
+                    <UButton @click="browse" size="lg"
+                        class="px-6 rounded-lg active:scale-95 cursor-pointer transition-transform">
                         <UIcon name="i-heroicons-folder-open" class="w-5 h-5 mr-2" />
                         Browse
                     </UButton>
@@ -60,12 +63,16 @@
             <div v-if="fileList.length > 0" class="space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900">Files</h3>
-                    <div class="flex gap-2">
-                        <UButton variant="outline" size="sm" @click="toggleView" class="rounded-lg">
+                    <div class="flex gap-2"> 
+                        <UButton variant="outline" color="neutral" @click="organize" class="rounded-lg cursor-pointer">
+                            Organize Folder
+                        </UButton>
+                        <UButton variant="outline" color="neutral" @click="toggleView" class="rounded-lg cursor-pointer">
                             <UIcon :name="viewMode === 'grid' ? 'i-heroicons-list-bullet' : 'i-heroicons-squares-2x2'"
                                 class="w-4 h-4" />
                         </UButton>
-                        <UButton variant="outline" size="sm" @click="refreshFiles" class="rounded-lg">
+                        <UButton variant="outline" color="neutral" @click="loadFiles"
+                            class="rounded-lg cursor-pointer">
                             <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
                         </UButton>
                     </div>
@@ -79,9 +86,8 @@
                         <div class="flex items-start space-x-3">
                             <div class="flex-shrink-0">
                                 <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                                    :class="getFileIconBg(file.name)">
-                                    <UIcon :name="getFileIcon(file.name)" class="w-5 h-5"
-                                        :class="getFileIconColor(file.name)" />
+                                    :class="getFileIconBg(file)">
+                                    <UIcon :name="getFileIcon(file)" class="w-5 h-5" :class="getFileIconColor(file)" />
                                 </div>
                             </div>
                             <div class="flex-1 min-w-0">
@@ -89,11 +95,12 @@
                                     {{ getFileName(file.name) }}
                                 </p>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    {{ formatFileSize(file.size) }}
+                                    {{ file.is_dir ? '' : formatFileSize(file.size) }}
                                 </p>
                                 <div class="flex items-center mt-2">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                        :class="getFileTypeBadge(file.name)">
+                                    <span v-if="file.is_file"
+                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                        :class="getFileTypeBadge(file)">
                                         {{ getFileExtension(file.name) }}
                                     </span>
                                 </div>
@@ -129,9 +136,9 @@
                                         <div class="flex items-center space-x-3">
                                             <div class="flex-shrink-0">
                                                 <div class="w-8 h-8 rounded-lg flex items-center justify-center"
-                                                    :class="getFileIconBg(file.name)">
-                                                    <UIcon :name="getFileIcon(file.name)" class="w-4 h-4"
-                                                        :class="getFileIconColor(file.name)" />
+                                                    :class="getFileIconBg(file)">
+                                                    <UIcon :name="getFileIcon(file)" class="w-4 h-4"
+                                                        :class="getFileIconColor(file)" />
                                                 </div>
                                             </div>
                                             <div>
@@ -140,14 +147,14 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span
+                                        <span v-if="file.is_file"
                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                            :class="getFileTypeBadge(file.name)">
+                                            :class="getFileTypeBadge(file)">
                                             {{ getFileExtension(file.name) }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ formatFileSize(file.size) }}
+                                        {{ file.is_dir ? '' : formatFileSize(file.size) }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -185,7 +192,8 @@ interface FileItem {
     is_file: boolean;
 }
 
-const selectedPath = ref<string>('C:/');
+const toast = useToast();
+const selectedPath = ref<string>('');
 const fileList = ref<Array<FileItem>>([]);
 const viewMode = ref<'grid' | 'table'>('grid');
 
@@ -203,6 +211,27 @@ const formatTotalSize = computed(() => {
     const totalBytes = fileList.value.reduce((sum, file) => sum + (file.size || 0), 0);
     return formatFileSize(totalBytes);
 });
+
+const organize = async () => {
+    const result = await invoke("organize_folder", { folderPath: selectedPath.value })
+
+    if (result) {
+        toast.add({
+            title: 'Failed',
+            description: 'Folder organization failed!',
+            duration: 3000,
+            color: 'error'
+        })
+    } else {
+        toast.add({
+            title: 'Success',
+            description: 'Folder organized successfully!',
+            duration: 3000,
+            color: 'success'
+        })
+        await loadFiles();
+    }
+}
 
 // Methods
 const browse = async () => {
@@ -223,12 +252,13 @@ const browse = async () => {
 };
 
 const loadFiles = async () => {
-    if (!selectedPath.value) return;
+    if (selectedPath.value.trim() === '') {
+        selectedPath.value = await invoke("get_root_path");
+    }
 
     try {
         fileList.value = await invoke("get_list_of_files_in_folder", { folderPath: selectedPath.value });
     } catch (error) {
-        console.error('Error loading files:', error);
         fileList.value = [];
     }
 };
@@ -242,11 +272,6 @@ const toggleView = () => {
     viewMode.value = viewMode.value === 'grid' ? 'table' : 'grid';
 };
 
-const refreshFiles = async () => {
-    await loadFiles();
-};
-
-// Utility functions
 const getFileName = (fullPath: string): string => {
     return fullPath.split(/[\\/]/).pop() || fullPath;
 };
@@ -256,8 +281,12 @@ const getFileExtension = (filename: string): string => {
     return ext.toUpperCase() || 'FILE';
 };
 
-const getFileIcon = (filename: string): string => {
-    const ext = filename.toLowerCase().split('.').pop() || '';
+const getFileIcon = (file: FileItem): string => {
+    if (file.is_dir) {
+        return 'i-heroicons-folder';
+    }
+
+    const ext = file.name.toLowerCase().split('.').pop() || '';
     const iconMap: { [key: string]: string } = {
         pdf: 'i-heroicons-document-text',
         doc: 'i-heroicons-document-text',
@@ -288,8 +317,12 @@ const getFileIcon = (filename: string): string => {
     return iconMap[ext] || 'i-heroicons-document';
 };
 
-const getFileIconBg = (filename: string): string => {
-    const ext = filename.toLowerCase().split('.').pop() || '';
+const getFileIconBg = (file: FileItem): string => {
+    if (file.is_dir) {
+        return 'bg-blue-100';
+    }
+
+    const ext = file.name.toLowerCase().split('.').pop() || '';
     const bgMap: { [key: string]: string } = {
         pdf: 'bg-red-100',
         doc: 'bg-blue-100',
@@ -318,8 +351,12 @@ const getFileIconBg = (filename: string): string => {
     return bgMap[ext] || 'bg-gray-100';
 };
 
-const getFileIconColor = (filename: string): string => {
-    const ext = filename.toLowerCase().split('.').pop() || '';
+const getFileIconColor = (file: FileItem): string => {
+    if (file.is_dir) {
+        return 'text-blue-600';
+    }
+
+    const ext = file.name.toLowerCase().split('.').pop() || '';
     const colorMap: { [key: string]: string } = {
         pdf: 'text-red-600',
         doc: 'text-blue-600',
@@ -348,8 +385,12 @@ const getFileIconColor = (filename: string): string => {
     return colorMap[ext] || 'text-gray-600';
 };
 
-const getFileTypeBadge = (filename: string): string => {
-    const ext = filename.toLowerCase().split('.').pop() || '';
+const getFileTypeBadge = (file: FileItem): string => {
+    if (file.is_dir) {
+        return 'bg-blue-100 text-blue-800';
+    }
+
+    const ext = file.name.toLowerCase().split('.').pop() || '';
     const badgeMap: { [key: string]: string } = {
         pdf: 'bg-red-100 text-red-800',
         doc: 'bg-blue-100 text-blue-800',
@@ -388,7 +429,6 @@ const formatFileSize = (bytes: number): string => {
 </script>
 
 <style scoped>
-/* Custom animations and enhancements */
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
