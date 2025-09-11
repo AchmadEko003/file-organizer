@@ -8,7 +8,7 @@
                     <UInput :ui="{
                         base: 'bg-white font-bold text-gray-700'
                     }" v-model="selectedPath" size="lg" placeholder="Select a folder to browse..."
-                        class="rounded-xl w-full">
+                        class="rounded-xl w-full" @keyup.enter="loadFiles">
                         <template #leading>
                             <UIcon name="i-heroicons-folder" class="w-5 h-5 text-gray-400" />
                         </template>
@@ -63,16 +63,18 @@
             <div v-if="fileList.length > 0" class="space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900">Files</h3>
-                    <div class="flex gap-2"> 
-                        <UButton variant="outline" color="neutral" @click="organize" class="rounded-lg cursor-pointer">
+                    <div class="flex gap-2">
+                        <UButton variant="outline" color="neutral" @click="organize"
+                            class="rounded-lg cursor-pointer active:scale-95 transition-transform">
                             Organize Folder
                         </UButton>
-                        <UButton variant="outline" color="neutral" @click="toggleView" class="rounded-lg cursor-pointer">
+                        <UButton variant="outline" color="neutral" @click="toggleView"
+                            class="rounded-lg cursor-pointer active:scale-95 transition-transform">
                             <UIcon :name="viewMode === 'grid' ? 'i-heroicons-list-bullet' : 'i-heroicons-squares-2x2'"
                                 class="w-4 h-4" />
                         </UButton>
                         <UButton variant="outline" color="neutral" @click="loadFiles"
-                            class="rounded-lg cursor-pointer">
+                            class="rounded-lg cursor-pointer active:scale-95 transition-transform">
                             <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
                         </UButton>
                     </div>
@@ -81,7 +83,7 @@
                 <!-- Grid View -->
                 <div v-if="viewMode === 'grid'"
                     class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    <div v-for="(file, index) in fileList" :key="index"
+                    <div v-for="(file, index) in fileList" :key="index" @dblclick="openFolder(file.name, file.is_dir)"
                         class="group bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all duration-200 cursor-pointer">
                         <div class="flex items-start space-x-3">
                             <div class="flex-shrink-0">
@@ -131,6 +133,7 @@
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="(file, index) in fileList" :key="index"
+                                    @dblclick="openFolder(file.name, file.is_dir)"
                                     class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center space-x-3">
@@ -248,6 +251,17 @@ const browse = async () => {
         }
     } catch (error) {
         console.error('Error selecting folder:', error);
+    }
+};
+
+const openFolder = async (name: string, is_dir: boolean = true) => {
+    try {
+        if (!is_dir) return;
+
+        selectedPath.value = selectedPath.value + name;
+        await loadFiles();
+    } catch (error) {
+        console.error('Error opening folder:', error);
     }
 };
 
