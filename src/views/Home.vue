@@ -5,10 +5,27 @@
             <!-- Path Input Section -->
             <div class="pb-6 pt-3 bg-slate-100">
                 <div class="flex w-full gap-3">
-                    <UInput :ui="{
+                    <div v-if="!showPathInput" @click="togglePathInput" 
+                         class="h-auto w-full flex items-center px-1 rounded-lg bg-white border-[1px] border-slate-300 cursor-pointer">
+                        <div v-for="(value, i) in reformatedPath" :key="value.name"
+                            class="flex items-center gap-1 ml-1">
+                            <UBadge color="neutral" variant="soft" 
+                                    class="items-center px-2 py-1 rounded-lg text-xs font-bold text-gray-800 hover:bg-gray-200 cursor-pointer active:scale-95 transition-transform" 
+                                    @click="handleBadgeClick(value.path, $event)">
+                                {{ value.name }}
+                            </UBadge>
+                            <UIcon name="i-heroicons-chevron-right" v-if="i < reformatedPath.length - 1" class="h-3">
+                            </UIcon>
+                        </div>
+                    </div>
+                    
+                    <UInput v-if="showPathInput" :ui="{
                         base: 'bg-white font-bold text-gray-700'
                     }" v-model="selectedPath" size="lg" placeholder="Select a folder to browse..."
-                        class="rounded-xl w-full" @keyup.enter="loadFiles">
+                        class="rounded-xl w-full" 
+                        @keyup.enter="loadFiles; hidePathInput()" 
+                        @keyup.escape="hidePathInput()"
+                        @blur="hidePathInput()">
                         <template #leading>
                             <UIcon name="i-heroicons-folder" class="w-5 h-5 text-gray-400" />
                         </template>
@@ -16,9 +33,7 @@
                             <UButton color="neutral" variant="ghost" size="sm" icon="i-heroicons-x-mark"
                                 @click="clearPath" />
                         </template>
-                    </UInput>
-
-                    <UButton @click="browse" size="lg"
+                    </UInput>                    <UButton @click="browse" size="lg"
                         class="px-6 rounded-lg active:scale-95 cursor-pointer transition-transform">
                         <UIcon name="i-heroicons-folder-open" class="w-5 h-5 mr-2" />
                         Browse
@@ -82,9 +97,9 @@
 
                 <!-- Grid View -->
                 <div v-if="viewMode === 'grid'"
-                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                     <div v-for="(file, index) in fileList" :key="index" @dblclick="openFolder(file.name, file.is_dir)"
-                        class="group bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all duration-200 cursor-pointer">
+                        class="group bg-white border border-gray-200 rounded-xl px-3 py-2 hover:shadow-lg hover:border-blue-300 transition-all duration-200 cursor-pointer">
                         <div class="flex items-start space-x-3">
                             <div class="flex-shrink-0">
                                 <div class="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -118,15 +133,15 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Name
                                     </th>
                                     <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Type
                                     </th>
                                     <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Size
                                     </th>
                                 </tr>
@@ -134,8 +149,8 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="(file, index) in fileList" :key="index"
                                     @dblclick="openFolder(file.name, file.is_dir)"
-                                    class="hover:bg-gray-50 transition-colors">
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    class="hover:bg-gray-100 transition-colors cursor-pointer">
+                                    <td class="px-3 py-2 whitespace-nowrap">
                                         <div class="flex items-center space-x-3">
                                             <div class="flex-shrink-0">
                                                 <div class="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -149,14 +164,14 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-3 py-2 whitespace-nowrap">
                                         <span v-if="file.is_file"
                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                             :class="getFileTypeBadge(file)">
                                             {{ getFileExtension(file.name) }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                                         {{ file.is_dir ? '' : formatFileSize(file.size) }}
                                     </td>
                                 </tr>
@@ -183,9 +198,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, message } from '@tauri-apps/plugin-dialog';
 
 interface FileItem {
     name: string;
@@ -198,7 +213,8 @@ interface FileItem {
 const toast = useToast();
 const selectedPath = ref<string>('');
 const fileList = ref<Array<FileItem>>([]);
-const viewMode = ref<'grid' | 'table'>('grid');
+const viewMode = ref<'grid' | 'table'>('table');
+const showPathInput = ref<boolean>(false);
 
 onMounted(() => {
     loadFiles();
@@ -208,6 +224,20 @@ onMounted(() => {
 const uniqueFileTypes = computed(() => {
     const types = new Set(fileList.value.map(file => getFileExtension(file.name)));
     return types.size;
+});
+
+const reformatedPath = computed(() => {
+    let tempPath = ''
+    const result = selectedPath.value.split('\\').filter(Boolean).map(part => {
+        console.log(part);
+        tempPath += part + '\\';
+        return {
+            name: part,
+            path: tempPath
+        }
+    });
+
+    return result;
 });
 
 const formatTotalSize = computed(() => {
@@ -223,14 +253,20 @@ const organize = async () => {
             title: 'Failed',
             description: 'Folder organization failed!',
             duration: 3000,
-            color: 'error'
+            color: 'error',
+            ui: {
+                root: 'bg-white'
+            }
         })
     } else {
         toast.add({
             title: 'Success',
             description: 'Folder organized successfully!',
             duration: 3000,
-            color: 'success'
+            color: 'success',
+            ui: {
+                root: 'bg-white'
+            }
         })
         await loadFiles();
     }
@@ -265,6 +301,16 @@ const openFolder = async (name: string, is_dir: boolean = true) => {
     }
 };
 
+const toPath = async (path: string) => {
+    selectedPath.value = path;
+    await loadFiles();
+};
+
+const clearPath = () => {
+    selectedPath.value = '';
+    fileList.value = [];
+};
+
 const loadFiles = async () => {
     if (selectedPath.value.trim() === '') {
         selectedPath.value = await invoke("get_root_path");
@@ -273,17 +319,40 @@ const loadFiles = async () => {
     try {
         fileList.value = await invoke("get_list_of_files_in_folder", { folderPath: selectedPath.value });
     } catch (error) {
-        fileList.value = [];
+        if ((error as string).includes('denied')) {
+            selectedPath.value = selectedPath.value.split(/[\\/]/).slice(0, -1).join('/');
+            await message((error as string).replace(' (os error 5)', ''), { title: 'DocuTools', kind: 'error' });
+        } else {
+            fileList.value = [];
+        }
     }
-};
-
-const clearPath = () => {
-    selectedPath.value = '';
-    fileList.value = [];
 };
 
 const toggleView = () => {
     viewMode.value = viewMode.value === 'grid' ? 'table' : 'grid';
+};
+
+const togglePathInput = () => {
+    showPathInput.value = !showPathInput.value;
+    if (showPathInput.value) {
+        // Auto-focus the input when it appears
+        nextTick(() => {
+            const inputElement = document.querySelector('input[placeholder="Select a folder to browse..."]') as HTMLInputElement;
+            if (inputElement) {
+                inputElement.focus();
+                inputElement.select();
+            }
+        });
+    }
+};
+
+const handleBadgeClick = (path: string, event: Event) => {
+    event.stopPropagation();
+    toPath(path);
+};
+
+const hidePathInput = () => {
+    showPathInput.value = false;
 };
 
 const getFileName = (fullPath: string): string => {

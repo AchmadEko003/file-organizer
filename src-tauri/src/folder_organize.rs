@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 use crate::helpers::{is_document_file, is_image_file, is_video_file};
 
-
 #[derive(serde::Serialize)]
 pub struct FilesList {
     name: String,
@@ -13,14 +12,21 @@ pub struct FilesList {
 }
 
 #[tauri::command]
-pub fn get_list_of_files_in_folder(folder_path: &str) -> Vec<FilesList> {
-    let paths = std::fs::read_dir(folder_path).unwrap();
+pub fn get_list_of_files_in_folder(folder_path: &str) -> Result<Vec<FilesList>, String> {
+    let paths = std::fs::read_dir(folder_path).map_err(|e| e.to_string())?;
     let mut file_list: Vec<FilesList> = Vec::new();
 
     for path in paths {
-        let file_path = path.unwrap().path();
+        let path = match path {
+            Ok(p) => p,
+            Err(_) => continue, // Skip entries we can't read
+        };
+        let file_path = path.path();
         if let Some(path_str) = file_path.to_str() {
-            let file_size = file_path.metadata().unwrap().len();
+            let file_size = match file_path.metadata() {
+                Ok(metadata) => metadata.len(),
+                Err(_) => 0, // Default size if we can't read metadata
+            };
 
             file_list.push(FilesList {
                 name: path_str.replace(folder_path, "").to_string(),
@@ -32,7 +38,7 @@ pub fn get_list_of_files_in_folder(folder_path: &str) -> Vec<FilesList> {
         }
     }
 
-    file_list
+    Ok(file_list)
 }
 
 #[tauri::command]
