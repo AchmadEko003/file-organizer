@@ -228,6 +228,7 @@ const uniqueFileTypes = computed(() => {
 
 const reformatedPath = computed(() => {
     let tempPath = ''
+    console.log(selectedPath.value);
     const result = selectedPath.value.split('\\').filter(Boolean).map(part => {
         console.log(part);
         tempPath += part + '\\';

@@ -1,7 +1,68 @@
-# Tauri + Vue + TypeScript
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+# File Organizer
 
-## Recommended IDE Setup
+A cross-platform desktop application built with Tauri (Rust) and Vue 3 + TypeScript (Vite) that helps organize files inside a folder by file type and extension. Yeah this is an upgrade or desktop version from [Folder Organizer](https://github.com/AchmadEko003/folder-organizer).
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+This repository contains:
+
+- A Vue 3 + TypeScript frontend (Vite)
+- A Rust backend (Tauri) exposing commands to list and organize files
+
+Key features
+- Scan a folder and return a list of files and directories (name, path, size, type)
+- Organize files by extension into categorized folders (images, documents, videos, others) and subfolders per extension
+- Cross-platform (Linux / macOS / Windows) via Tauri, currently works well on `Windows`
+
+## Quick links
+
+- Frontend entry: `src/main.ts` and `src/App.vue`
+- Tauri (Rust) entry: `src-tauri/src/main.rs` and `src-tauri/src/lib.rs`
+
+## Development
+
+1. Install frontend dependencies:
+
+```bash
+npm install
+```
+or
+```bash
+bun install
+```
+
+2. Run tauri development:
+
+```bash
+npm run tauri dev
+```
+or
+```bash
+bun run tauri dev
+```
+
+## Build / Production
+
+1. Build the frontend assets:
+
+```bash
+npm run tauri build
+```
+or
+```bash
+bun run tauri build
+```
+
+Note: platform-specific packaging requires Tauri prerequisites for your OS. See the Tauri docs for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make changes and add tests where appropriate
+4. Open a pull request describing your change
+
+## Support / Donate
+
+If you find File Organizer helpful and want to support continued development, you can donate via Saweria for Indonesia.
+
+[Support on Saweria](https://saweria.co/madko003)
