@@ -29,6 +29,7 @@ pub fn run() {
             get_root_path,
             folder_organize::get_list_of_files_in_folder,
             folder_organize::organize_folder,
+            folder_organize::search_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

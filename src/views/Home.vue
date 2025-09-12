@@ -4,40 +4,60 @@
         <div class="p-3">
             <!-- Path Input Section -->
             <div class="pb-6 pt-3 bg-slate-100">
-                <div class="flex w-full gap-3">
-                    <div v-if="!showPathInput" @click="togglePathInput" 
-                         class="h-auto w-full flex items-center px-1 rounded-lg bg-white border-[1px] border-slate-300 cursor-pointer">
-                        <div v-for="(value, i) in reformatedPath" :key="value.name"
-                            class="flex items-center gap-1 ml-1">
-                            <UBadge color="neutral" variant="soft" 
-                                    class="items-center px-2 py-1 rounded-lg text-xs font-bold text-gray-800 hover:bg-gray-200 cursor-pointer active:scale-95 transition-transform" 
+                <div class="grid grid-cols-12 gap-3">
+                    <UButtonGroup class="col-span-9">
+                        <div
+                            class="h-auto w-full flex items-center px-1 rounded-l-lg bg-white border-[1px] border-slate-300">
+                            <div v-for="(value, i) in reformatedPath" :key="value.name"
+                                class="flex items-center gap-1 ml-1 overflow-x-auto">
+                                <UBadge color="neutral" variant="soft"
+                                    class="items-center px-2 py-1 !rounded-lg text-xs font-bold text-gray-800 hover:bg-gray-200 cursor-pointer active:scale-95 transition-transform"
                                     @click="handleBadgeClick(value.path, $event)">
-                                {{ value.name }}
-                            </UBadge>
-                            <UIcon name="i-heroicons-chevron-right" v-if="i < reformatedPath.length - 1" class="h-3">
-                            </UIcon>
+                                    {{ value.name }}
+                                </UBadge>
+                                <UIcon name="i-heroicons-chevron-right" v-if="i < reformatedPath.length - 1"
+                                    class="h-3">
+                                </UIcon>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <UInput v-if="showPathInput" :ui="{
-                        base: 'bg-white font-bold text-gray-700'
-                    }" v-model="selectedPath" size="lg" placeholder="Select a folder to browse..."
-                        class="rounded-xl w-full" 
-                        @keyup.enter="loadFiles; hidePathInput()" 
-                        @keyup.escape="hidePathInput()"
-                        @blur="hidePathInput()">
-                        <template #leading>
-                            <UIcon name="i-heroicons-folder" class="w-5 h-5 text-gray-400" />
-                        </template>
-                        <template v-if="selectedPath?.length" #trailing>
-                            <UButton color="neutral" variant="ghost" size="sm" icon="i-heroicons-x-mark"
-                                @click="clearPath" />
-                        </template>
-                    </UInput>                    <UButton @click="browse" size="lg"
-                        class="px-6 rounded-lg active:scale-95 cursor-pointer transition-transform">
-                        <UIcon name="i-heroicons-folder-open" class="w-5 h-5 mr-2" />
-                        Browse
-                    </UButton>
+
+                        <!-- <UInput v-if="showPathInput" :ui="{
+                            base: 'bg-white font-bold text-gray-700'
+                        }" v-model="selectedPath" size="lg" placeholder="Select a folder to browse..."
+                            class="rounded-xl w-full" @keyup.enter="loadFiles; hidePathInput()"
+                            @keyup.escape="hidePathInput()" @blur="hidePathInput()">
+                            <template #leading>
+                                <UIcon name="i-heroicons-folder" class="w-5 h-5 text-gray-400" />
+                            </template>
+<template v-if="selectedPath?.length" #trailing>
+                                <UButton color="neutral" variant="ghost" size="sm" icon="i-heroicons-x-mark"
+                                    @click="clearPath" />
+                            </template>
+</UInput> -->
+
+                        <UButton @click="browse" size="lg"
+                            class="rounded-lg active:scale-[98%] cursor-pointer transition-transform">
+                            <UIcon name="i-heroicons-folder-open" class="w-5 h-5 mr-1" />
+                            Browse
+                        </UButton>
+                    </UButtonGroup>
+
+                    <UButtonGroup class="col-span-3">
+                        <UInput :ui="{
+                            base: 'bg-white font-bold text-gray-700'
+                        }" v-model="fileName" size="lg"
+                            :placeholder="'Search ' + reformatedPath[reformatedPath.length - 1]?.name"
+                            class="rounded-xl w-full" @keydown.enter="searchFiles">
+                            <template v-if="fileName?.length" #trailing>
+                                <UButton color="neutral" variant="ghost" size="sm" icon="i-heroicons-x-mark"
+                                    @click="clearSearch" />
+                            </template>
+                        </UInput>
+
+                        <UButton @click="searchFiles" icon="i-heroicons-magnifying-glass"
+                            class="rounded-lg active:scale-[98%] cursor-pointer transition-transform">
+                        </UButton>
+                    </UButtonGroup>
                 </div>
             </div>
 
@@ -200,7 +220,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { open, message } from '@tauri-apps/plugin-dialog';
+import { open, message, ask } from '@tauri-apps/plugin-dialog';
 
 interface FileItem {
     name: string;
@@ -215,6 +235,7 @@ const selectedPath = ref<string>('');
 const fileList = ref<Array<FileItem>>([]);
 const viewMode = ref<'grid' | 'table'>('table');
 const showPathInput = ref<boolean>(false);
+const fileName = ref<string>('');
 
 onMounted(() => {
     loadFiles();
@@ -246,33 +267,81 @@ const formatTotalSize = computed(() => {
 });
 
 const organize = async () => {
-    const result = await invoke("organize_folder", { folderPath: selectedPath.value })
+    try {
+        const confirmed = await ask(
+            'This will organize files in the current folder by moving them into categorized subdirectories (images, documents, videos, others). This action cannot be undone.\n\nDo you want to continue?',
+            {
+                title: 'Confirm Folder Organization',
+                kind: 'warning'
+            }
+        );
 
-    if (result) {
+        if (!confirmed) {
+            return;
+        }
+
+        const result = await invoke("organize_folder", { folderPath: selectedPath.value });
+
+        if (result) {
+            toast.add({
+                title: 'Failed',
+                description: 'Folder organization failed!',
+                duration: 3000,
+                color: 'error',
+                ui: {
+                    root: 'bg-white'
+                }
+            });
+        } else {
+            toast.add({
+                title: 'Success',
+                description: 'Folder organized successfully!',
+                duration: 3000,
+                color: 'success',
+                ui: {
+                    root: 'bg-white'
+                }
+            });
+            await loadFiles();
+        }
+    } catch (error) {
         toast.add({
-            title: 'Failed',
-            description: 'Folder organization failed!',
+            title: 'Error',
+            description: 'An unexpected error occurred during organization.',
             duration: 3000,
             color: 'error',
             ui: {
                 root: 'bg-white'
             }
-        })
-    } else {
-        toast.add({
-            title: 'Success',
-            description: 'Folder organized successfully!',
-            duration: 3000,
-            color: 'success',
-            ui: {
-                root: 'bg-white'
-            }
-        })
-        await loadFiles();
+        });
     }
 }
 
-// Methods
+const searchFiles = async () => {
+    if (fileName.value.trim() === '') {
+        await loadFiles();
+        return;
+    }
+
+    try {
+        const result = await invoke("search_file", { folderPath: selectedPath.value, searchTerm: fileName.value });
+
+        fileList.value = result as Array<FileItem>;
+    } catch (error) {
+        if ((error as string).includes('denied')) {
+            selectedPath.value = selectedPath.value.split(/[\\/]/).slice(0, -1).join('/');
+            await message((error as string).replace(' (os error 5)', ''), { title: 'DocuTools', kind: 'error' });
+        } else {
+            fileList.value = [];
+        }
+    }
+}
+
+const clearSearch = async () => {
+    fileName.value = '';
+    await loadFiles();
+}
+
 const browse = async () => {
     try {
         const file = await open({
