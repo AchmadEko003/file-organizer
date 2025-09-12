@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, message, ask } from '@tauri-apps/plugin-dialog';
 
@@ -234,7 +234,7 @@ const toast = useToast();
 const selectedPath = ref<string>('');
 const fileList = ref<Array<FileItem>>([]);
 const viewMode = ref<'grid' | 'table'>('table');
-const showPathInput = ref<boolean>(false);
+// const showPathInput = ref<boolean>(false);
 const fileName = ref<string>('');
 
 onMounted(() => {
@@ -376,10 +376,10 @@ const toPath = async (path: string) => {
     await loadFiles();
 };
 
-const clearPath = () => {
-    selectedPath.value = '';
-    fileList.value = [];
-};
+// const clearPath = () => {
+//     selectedPath.value = '';
+//     fileList.value = [];
+// };
 
 const loadFiles = async () => {
     if (selectedPath.value.trim() === '') {
@@ -402,28 +402,28 @@ const toggleView = () => {
     viewMode.value = viewMode.value === 'grid' ? 'table' : 'grid';
 };
 
-const togglePathInput = () => {
-    showPathInput.value = !showPathInput.value;
-    if (showPathInput.value) {
-        // Auto-focus the input when it appears
-        nextTick(() => {
-            const inputElement = document.querySelector('input[placeholder="Select a folder to browse..."]') as HTMLInputElement;
-            if (inputElement) {
-                inputElement.focus();
-                inputElement.select();
-            }
-        });
-    }
-};
+// const togglePathInput = () => {
+//     showPathInput.value = !showPathInput.value;
+//     if (showPathInput.value) {
+//         // Auto-focus the input when it appears
+//         nextTick(() => {
+//             const inputElement = document.querySelector('input[placeholder="Select a folder to browse..."]') as HTMLInputElement;
+//             if (inputElement) {
+//                 inputElement.focus();
+//                 inputElement.select();
+//             }
+//         });
+//     }
+// };
 
 const handleBadgeClick = (path: string, event: Event) => {
     event.stopPropagation();
     toPath(path);
 };
 
-const hidePathInput = () => {
-    showPathInput.value = false;
-};
+// const hidePathInput = () => {
+//     showPathInput.value = false;
+// };
 
 const getFileName = (fullPath: string): string => {
     return fullPath.split(/[\\/]/).pop() || fullPath;
