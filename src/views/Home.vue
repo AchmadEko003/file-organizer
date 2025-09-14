@@ -108,7 +108,7 @@
                             <UIcon :name="viewMode === 'grid' ? 'i-heroicons-list-bullet' : 'i-heroicons-squares-2x2'"
                                 class="w-4 h-4" />
                         </UButton>
-                        <UButton variant="outline" color="neutral" @click="loadFiles"
+                        <UButton variant="outline" color="neutral" @click="searchFiles"
                             class="rounded-lg cursor-pointer active:scale-95 transition-transform">
                             <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
                         </UButton>
@@ -237,6 +237,7 @@ const viewMode = ref<'grid' | 'table'>('table');
 // const showPathInput = ref<boolean>(false);
 const fileName = ref<string>('');
 const os = ref<string>('');
+const pathSeparator = ref<string>('');
 
 onMounted(() => {
     loadFiles();
@@ -250,11 +251,9 @@ const uniqueFileTypes = computed(() => {
 
 const reformatedPath = computed(() => {
     let tempPath = ''
-    console.log(selectedPath.value);
-    const pathSeparator = os.value === 'linux' || os.value === 'macos' ? '/' : '\\';
-    const result = selectedPath.value.split(pathSeparator).filter(Boolean).map(part => {
+    const result = selectedPath.value.split(pathSeparator.value).filter(Boolean).map(part => {
         console.log(part);
-        tempPath += part + pathSeparator;
+        tempPath += part + pathSeparator.value;
         return {
             name: part,
             path: tempPath
@@ -389,10 +388,13 @@ const loadFiles = async () => {
 
         if (os.value === 'linux') {
             selectedPath.value = '/home';
+            pathSeparator.value = '/';
         } else if (os.value === 'macos') {
             selectedPath.value = '/Users';
+            pathSeparator.value = '/';
         } else {
             selectedPath.value = 'C:\\';
+            pathSeparator.value = '\\';
         }
         // selectedPath.value = await invoke("get_root_path");
     }
@@ -401,7 +403,7 @@ const loadFiles = async () => {
         fileList.value = await invoke("get_list_of_files_in_folder", { folderPath: selectedPath.value });
     } catch (error) {
         if ((error as string).includes('denied')) {
-            selectedPath.value = selectedPath.value.split(/[\\/]/).slice(0, -1).join('/');
+            selectedPath.value = selectedPath.value.split(pathSeparator.value).slice(0, -1).join(pathSeparator.value);
             await message((error as string).replace(' (os error 5)', ''), { title: 'DocuTools', kind: 'error' });
         } else {
             fileList.value = [];
