@@ -63,6 +63,6 @@ Note: platform-specific packaging requires Tauri prerequisites for your OS. See 
 
 ## Support / Donate
 
-If you find File Organizer helpful and want to support continued development, you can donate via Saweria for Indonesia.
+If you find File Organizer helpful and want to support continued development, you can donate via Saweria.
 
 [Support on Saweria](https://saweria.co/madko003)
