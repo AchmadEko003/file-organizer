@@ -236,6 +236,7 @@ const fileList = ref<Array<FileItem>>([]);
 const viewMode = ref<'grid' | 'table'>('table');
 // const showPathInput = ref<boolean>(false);
 const fileName = ref<string>('');
+const os = ref<string>('');
 
 onMounted(() => {
     loadFiles();
@@ -250,9 +251,10 @@ const uniqueFileTypes = computed(() => {
 const reformatedPath = computed(() => {
     let tempPath = ''
     console.log(selectedPath.value);
-    const result = selectedPath.value.split('\\').filter(Boolean).map(part => {
+    const pathSeparator = os.value === 'linux' || os.value === 'macos' ? '/' : '\\';
+    const result = selectedPath.value.split(pathSeparator).filter(Boolean).map(part => {
         console.log(part);
-        tempPath += part + '\\';
+        tempPath += part + pathSeparator;
         return {
             name: part,
             path: tempPath
@@ -383,7 +385,16 @@ const toPath = async (path: string) => {
 
 const loadFiles = async () => {
     if (selectedPath.value.trim() === '') {
-        selectedPath.value = await invoke("get_root_path");
+        os.value = await invoke('get_root_path')
+
+        if (os.value === 'linux') {
+            selectedPath.value = '/home';
+        } else if (os.value === 'macos') {
+            selectedPath.value = '/Users';
+        } else {
+            selectedPath.value = 'C:\\';
+        }
+        // selectedPath.value = await invoke("get_root_path");
     }
 
     try {
@@ -418,7 +429,7 @@ const toggleView = () => {
 
 const handleBadgeClick = (path: string, event: Event) => {
     event.stopPropagation();
-    toPath(path);
+    toPath(os.value === 'linux' || os.value === 'macos' ? '/' + path : path);
 };
 
 // const hidePathInput = () => {

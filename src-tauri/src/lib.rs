@@ -10,13 +10,15 @@ fn greet(name: &str) -> String {
 fn get_root_path() -> String {
     let os = std::env::consts::OS;
 
-    if os == "linux" {
-        "/home".to_string()
-    } else if os == "macos" {
-        "/Users".to_string()
-    } else {
-        "C:\\".to_string()
-    }
+    os.to_string()
+
+    // if os == "linux" {
+    //     "/home".to_string()
+    // } else if os == "macos" {
+    //     "/Users".to_string()
+    // } else {
+    //     "C:\\".to_string()
+    // }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
