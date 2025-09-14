@@ -29,6 +29,19 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "linux": {
+      "rpm": {
+        "epoch": 0,
+        "files": {},
+        "release": "1",
+        "preInstallScript": "~/Project/file-organizer/src-tauri/scripts/prescript.sh",
+        "postInstallScript": "~/Project/file-organizer/src-tauri/scripts/postscript.sh",
+        "preRemoveScript": "~/Project/file-organizer/src-tauri/scripts/prescript.sh",
+        "postRemoveScript": "~/Project/file-organizer/src-tauri/scripts/postscript.sh"
+      }
+    }
   }
 }
