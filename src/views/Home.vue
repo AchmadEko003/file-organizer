@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen">
+    <div class="max-h-screen flex flex-col py-3">
         <!-- Browser Card -->
         <div class="p-3">
             <!-- Path Input Section -->
@@ -95,7 +95,7 @@
             </div>
 
             <!-- File List -->
-            <div v-if="fileList.length > 0" class="space-y-4">
+            <div v-if="fileList.length > 0">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900">Files</h3>
                     <div class="flex gap-2">
@@ -114,7 +114,11 @@
                         </UButton>
                     </div>
                 </div>
+            </div>
+        </div>
 
+        <div class="mt-4 px-3 overflow-y-auto flex-1 overflow-auto">
+            <div v-if="fileList.length > 0">
                 <!-- Grid View -->
                 <div v-if="viewMode === 'grid'"
                     class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
@@ -150,7 +154,7 @@
                 <div v-else class="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                            <!-- <thead class="bg-gray-50">
                                 <tr>
                                     <th
                                         class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -165,7 +169,7 @@
                                         Size
                                     </th>
                                 </tr>
-                            </thead>
+                            </thead> -->
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="(file, index) in fileList" :key="index"
                                     @dblclick="openFolder(file.name, file.is_dir)"
