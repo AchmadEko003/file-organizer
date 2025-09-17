@@ -6,6 +6,11 @@ const routes = [
     path: '/',
     name: 'Home',
     component: Home
+  },
+  {
+    path: '/pdf',
+    name: 'pdf-index',
+    component: () => import('../views/pdf/index.vue')
   }
 ]
 

@@ -1,11 +1,21 @@
 <template>
   <UApp :class="{ 'production-security': !isDevelopment }" @contextmenu="handleContextMenu" @keydown="handleKeydown">
-    <RouterView />
+    <div class="flex">
+      <aside class="w-fit px-1 border-r border-gray-200">
+        <div class="text-2xl text-center py-6 font-bold">DocuTools</div>
+        <Navigation />
+      </aside>
+
+      <main class="flex-1 overflow-y-auto">
+        <RouterView />
+      </main>
+    </div>
   </UApp>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
+import Navigation from './components/Navigation.vue';
 
 const isDevelopment = import.meta.env.DEV;
 
