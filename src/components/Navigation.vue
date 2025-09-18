@@ -8,13 +8,15 @@ const items = ref<NavigationMenuItem[][]>([
       label: 'File Organizer',
       icon: 'i-lucide-home',
       to: '/',
-      class: 'hover:bg-white rounded-lg transition-all'
+    },
+    {
+      label: 'Other Tools',
+      type: 'label'
     },
     {
       label: 'PDF',
       icon: 'i-heroicons-document-text',
-      to: '/pdf',
-      class: 'hover:bg-white rounded-lg transition-all'
+      to: '/pdf'
     }
   ]
 ])
@@ -22,6 +24,6 @@ const items = ref<NavigationMenuItem[][]>([
 
 <template>
   <UNavigationMenu orientation="vertical" :items="items" class="data-[orientation=vertical]:w-48" :ui="{
-    item: 'cursor-pointer active:scale-95 transition-transform'
+    item: 'cursor-pointer active:scale-95 transition-transform hover:bg-white rounded-lg',
   }" />
 </template>
