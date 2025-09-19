@@ -32,6 +32,20 @@
     ],
     "license": "MIT",
     "licenseFile": "../LICENSE",
+    "windows": {
+      "allowDowngrades": true,
+      "certificateThumbprint": null,
+      "digestAlgorithm": null,
+      "nsis": null,
+      "signCommand": null,
+      "timestampUrl": null,
+      "tsp": false,
+      "webviewInstallMode": {
+        "silent": true,
+        "type": "downloadBootstrapper"
+      },
+      "wix": null
+    },
     "linux": {
       "rpm": {
         "epoch": 0,

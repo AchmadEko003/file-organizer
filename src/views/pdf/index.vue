@@ -398,38 +398,40 @@ const getActionButtonText = (action: string): string => {
 }
 
 const processPDF = async () => {
-  if (!canProcess.value) return
-  isProcessing.value = true
-  progressValue.value = 0
-  processResults.value = []
+  console.log('Processing PDF with action:', splitOptions.value.pageRange.split(',').map(r => r.trim()))
+  console.log(await invoke('do_split', { filePath: selectedFiles.value[0].path, splitOptions: splitOptions.value.pageRange.split(',').map(r => r.trim()) }))
+  // if (!canProcess.value) return
+  // isProcessing.value = true
+  // progressValue.value = 0
+  // processResults.value = []
   
-  try {
-    progressText.value = 'Preparing to process files...'
-    progressValue.value = 10
+  // try {
+  //   progressText.value = 'Preparing to process files...'
+  //   progressValue.value = 10
     
-    for (let i = 0; i < selectedFiles.value.length; i++) {
-      const file = selectedFiles.value[i]
-      progressText.value = `Processing ${file.name}...`
-      progressValue.value = 20 + (i / selectedFiles.value.length) * 70
+  //   for (let i = 0; i < selectedFiles.value.length; i++) {
+  //     const file = selectedFiles.value[i]
+  //     progressText.value = `Processing ${file.name}...`
+  //     progressValue.value = 20 + (i / selectedFiles.value.length) * 70
       
-      await new Promise(resolve => setTimeout(resolve, 1000))
+  //     await new Promise(resolve => setTimeout(resolve, 1000))
       
-      processResults.value.push({
-        filename: `${selectedAction.value}_${file.name}`,
-        path: `${outputPath.value}/${selectedAction.value}_${file.name}`
-      })
-    }
+  //     processResults.value.push({
+  //       filename: `${selectedAction.value}_${file.name}`,
+  //       path: `${outputPath.value}/${selectedAction.value}_${file.name}`
+  //     })
+  //   }
     
-    progressText.value = 'Processing complete!'
-    progressValue.value = 100
+  //   progressText.value = 'Processing complete!'
+  //   progressValue.value = 100
     
-    selectedFiles.value = []
+  //   selectedFiles.value = []
     
-  } catch (error) {
-    console.error('Error processing PDF:', error)
-  } finally {
-    isProcessing.value = false
-  }
+  // } catch (error) {
+  //   console.error('Error processing PDF:', error)
+  // } finally {
+  //   isProcessing.value = false
+  // }
 }
 
 const openFile = async (filePath: string) => {
