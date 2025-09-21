@@ -1,4 +1,5 @@
-use lopdf::{Document, Object, dictionary};
+use std::collections::BTreeMap;
+use lopdf::{Document, Object, Dictionary};
 
 #[tauri::command]
 pub fn get_pdf_page_count(file_path: &str) -> Result<i32, String> {
@@ -19,12 +20,10 @@ pub fn do_split(file_path: &str, split_options: Vec<&str>) -> Result<String, Str
         return Err(format!("File not found: {}", file_path));
     }
 
-    let doc: Document = Document::load(file_path)
-        .map_err(|e| format!("Failed to load PDF '{}': {}", file_path, e))?;
-
-    let pages = doc.get_pages();
+    println!("Splitting PDF: {} with options: {:?}", file_path, split_options);
 
     for item in split_options {
+        println!("Processing split option: {}", item);
         if item.contains('-') {
             let parts: Vec<&str> = item.split('-').collect();
             if parts.len() != 2 {
@@ -38,60 +37,211 @@ pub fn do_split(file_path: &str, split_options: Vec<&str>) -> Result<String, Str
                 return Err(format!("Invalid page range: {}-{}", start, end));
             }
 
-            let mut new_doc = Document::with_version("1.5");
-            
-            let mut kids = vec![];
-
-            for page_num in start..=end {
-                let page_id = *pages.get(&(page_num - 1)).ok_or(format!("Page {} not found", page_num))?;
-                
-                let page_obj = doc.get_object(page_id).unwrap().clone();
-                
-                let new_page_id = new_doc.add_object(page_obj.clone());
-                
-                kids.push(Object::Reference(new_page_id));
-            }
-
-            let pages_id = new_doc.new_object_id();
-            
-            for kid in &kids {
-                if let Object::Reference(id) = kid {
-                    if let Some(page_dict) = new_doc.objects.get_mut(id) {
-                        if let Ok(dict) = page_dict.as_dict_mut() {
-                            dict.set("Parent", Object::Reference(pages_id));
-                        }
-                    }
+            match extract_multiple_pages(file_path, (start..=end).collect()) {
+                Ok(()) => {}
+                Err(e) => {
+                    return Err(format!("Failed to extract pages: {}", e));
                 }
             }
+        } else {
+            let page_num: u32 = item.parse().map_err(|e| format!("{}", e))?;
+            if page_num == 0 {
+                return Err(format!("Invalid page number: {}", page_num));
+            }
 
-            new_doc.objects.insert(
-                pages_id,
-                Object::Dictionary(dictionary! {
-                    "Type" => "Pages",
-                    "Kids" => kids,
-                    "Count" => (end - start + 1) as i64,
-                }),
-            );
-
-            let catalog_id = new_doc.new_object_id();
-            new_doc.objects.insert(
-                catalog_id,
-                Object::Dictionary(dictionary! {
-                    "Type" => "Catalog",
-                    "Pages" => Object::Reference(pages_id),
-                }),
-            );
-
-            new_doc.trailer.set("Root", catalog_id);
-            
-            new_doc.prune_objects();
-
-            let output_path = format!("output_{}_to_{}.pdf", start, end);
-            
-            new_doc.save(&output_path)
-                .map_err(|e| format!("Failed to save {}: {}", output_path, e))?;
+            match extract_multiple_pages(file_path, vec![page_num]) {
+                Ok(()) => {}
+                Err(e) => {
+                    return Err(format!("Failed to extract page {}: {}", page_num, e));
+                }
+            }
         }
     }
 
     Ok("PDF split completed successfully".into())
+}
+
+fn extract_multiple_pages(file_path: &str, target_pages: Vec<u32>) -> Result<(), Box<dyn std::error::Error>> {
+    let doc = Document::load(file_path)
+        .map_err(|e| format!("Failed to load PDF '{}': {}", file_path, e))?;
+    let pages = doc.get_pages();
+
+    if target_pages.is_empty() {
+        return Err("Page number is out of range".into());
+    }
+
+    let mut new_doc = Document::with_version("1.5");
+
+    let mut objects_to_copy = BTreeMap::new();
+    let mut new_page_ids = Vec::new();
+
+    for &page_num in &target_pages {
+        if let Some(&page_id) = pages.get(&page_num) {
+            new_page_ids.push(page_id);
+            collect_page_content(&doc, page_id, &mut objects_to_copy)?;
+        }
+    }
+
+    let mut id_map = BTreeMap::new();
+    for (old_id, obj) in objects_to_copy {
+        let new_id = new_doc.add_object(obj);
+        id_map.insert(old_id, new_id);
+    }
+    
+    // Update references in the new document
+    update_references(&mut new_doc, &id_map)?;
+    
+    // Set up the document structure for multiple pages
+    setup_multi_page_document_structure(&mut new_doc, &id_map, &new_page_ids)?;
+
+    let name: String;
+
+    if target_pages.len() > 1 {
+        name = format!("pages_{}-{}", target_pages.first().unwrap(), target_pages.last().unwrap());
+    } else {
+        name = format!("page_{}", target_pages[0]);
+    }
+
+    new_doc.save(format!("/home/madko/Downloads/{}.pdf", name))?;
+
+    Ok(())
+}
+
+fn collect_page_content(doc: &Document, page_id: (u32, u16), objects: &mut BTreeMap<(u32, u16), Object>) -> Result<(), Box<dyn std::error::Error>> {
+    if objects.contains_key(&page_id) {
+        return Ok(());
+    }
+    
+    let obj = doc.get_object(page_id)?.clone();
+    objects.insert(page_id, obj.clone());
+    
+    // Recursively collect referenced objects
+    collect_referenced_content(doc, &obj, objects)?;
+    
+    Ok(())
+}
+
+fn collect_referenced_content(doc: &Document, obj: &Object, objects: &mut BTreeMap<(u32, u16), Object>) -> Result<(), Box<dyn std::error::Error>> {
+    match obj {
+        Object::Reference(ref_id) => {
+            if !objects.contains_key(ref_id) {
+                if let Ok(referenced_obj) = doc.get_object(*ref_id) {
+                    objects.insert(*ref_id, referenced_obj.clone());
+                    collect_referenced_content(doc, referenced_obj, objects)?;
+                }
+            }
+        }
+        Object::Dictionary(dict) => {
+            for (_, value) in dict.iter() {
+                collect_referenced_content(doc, value, objects)?;
+            }
+        }
+        Object::Array(arr) => {
+            for item in arr {
+                collect_referenced_content(doc, item, objects)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn update_references(doc: &mut Document, id_map: &BTreeMap<(u32, u16), (u32, u16)>) -> Result<(), Box<dyn std::error::Error>> {
+    let object_ids: Vec<(u32, u16)> = doc.objects.keys().cloned().collect();
+    
+    for obj_id in object_ids {
+        if let Ok(obj) = doc.get_object_mut(obj_id) {
+            update_object_references(obj, id_map);
+        }
+    }
+    
+    Ok(())
+}
+
+fn update_object_references(obj: &mut Object, id_map: &BTreeMap<(u32, u16), (u32, u16)>) {
+    match obj {
+        Object::Reference(ref_id) => {
+            if let Some(&new_id) = id_map.get(ref_id) {
+                *ref_id = new_id;
+            }
+        }
+        Object::Dictionary(dict) => {
+            for (_, value) in dict.iter_mut() {
+                update_object_references(value, id_map);
+            }
+        }
+        Object::Array(arr) => {
+            for item in arr {
+                update_object_references(item, id_map);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn setup_document_structure(doc: &mut Document, id_map: &BTreeMap<(u32, u16), (u32, u16)>, original_page_id: (u32, u16)) -> Result<(), Box<dyn std::error::Error>> {
+    let page_id = id_map[&original_page_id];
+    
+    // Create pages dictionary
+    let mut pages_dict = Dictionary::new();
+    pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
+    pages_dict.set("Count", Object::Integer(1));
+    pages_dict.set("Kids", Object::Array(vec![Object::Reference(page_id)]));
+    
+    let pages_obj_id = doc.add_object(Object::Dictionary(pages_dict));
+    
+    // Update the page to reference the new pages object
+    if let Ok(Object::Dictionary(page_dict)) = doc.get_object_mut(page_id) {
+        page_dict.set("Parent", Object::Reference(pages_obj_id));
+    }
+    
+    // Create catalog
+    let mut catalog = Dictionary::new();
+    catalog.set("Type", Object::Name(b"Catalog".to_vec()));
+    catalog.set("Pages", Object::Reference(pages_obj_id));
+    
+    let catalog_id = doc.add_object(Object::Dictionary(catalog));
+    doc.trailer.set("Root", Object::Reference(catalog_id));
+    
+    Ok(())
+}
+
+// Function to set up document structure for multiple pages
+fn setup_multi_page_document_structure(doc: &mut Document, id_map: &BTreeMap<(u32, u16), (u32, u16)>, original_page_ids: &[(u32, u16)]) -> Result<(), Box<dyn std::error::Error>> {
+    // Map original page IDs to new page IDs
+    let mut new_page_ids = Vec::new();
+    for &original_id in original_page_ids {
+        if let Some(&new_id) = id_map.get(&original_id) {
+            new_page_ids.push(new_id);
+        }
+    }
+    
+    // Create pages dictionary
+    let mut pages_dict = Dictionary::new();
+    pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
+    pages_dict.set("Count", Object::Integer(new_page_ids.len() as i64));
+    
+    let kids_array: Vec<Object> = new_page_ids.iter()
+        .map(|&id| Object::Reference(id))
+        .collect();
+    pages_dict.set("Kids", Object::Array(kids_array));
+    
+    let pages_obj_id = doc.add_object(Object::Dictionary(pages_dict));
+    
+    // Update each page to reference the new pages object
+    for &page_id in &new_page_ids {
+        if let Ok(Object::Dictionary(page_dict)) = doc.get_object_mut(page_id) {
+            page_dict.set("Parent", Object::Reference(pages_obj_id));
+        }
+    }
+    
+    // Create catalog
+    let mut catalog = Dictionary::new();
+    catalog.set("Type", Object::Name(b"Catalog".to_vec()));
+    catalog.set("Pages", Object::Reference(pages_obj_id));
+    
+    let catalog_id = doc.add_object(Object::Dictionary(catalog));
+    doc.trailer.set("Root", Object::Reference(catalog_id));
+    
+    Ok(())
 }
