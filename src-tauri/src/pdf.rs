@@ -15,7 +15,7 @@ pub fn get_pdf_page_count(file_path: &str) -> Result<i32, String> {
 }
 
 #[tauri::command]
-pub fn do_split(file_path: &str, split_options: Vec<&str>) -> Result<String, String> {
+pub fn do_split(file_path: &str, output_path: &str, split_options: Vec<&str>) -> Result<String, String> {
     if !std::path::Path::new(file_path).exists() {
         return Err(format!("File not found: {}", file_path));
     }
@@ -37,7 +37,7 @@ pub fn do_split(file_path: &str, split_options: Vec<&str>) -> Result<String, Str
                 return Err(format!("Invalid page range: {}-{}", start, end));
             }
 
-            match extract_multiple_pages(file_path, (start..=end).collect()) {
+            match extract_multiple_pages(file_path, output_path, (start..=end).collect()) {
                 Ok(()) => {}
                 Err(e) => {
                     return Err(format!("Failed to extract pages: {}", e));
@@ -49,7 +49,7 @@ pub fn do_split(file_path: &str, split_options: Vec<&str>) -> Result<String, Str
                 return Err(format!("Invalid page number: {}", page_num));
             }
 
-            match extract_multiple_pages(file_path, vec![page_num]) {
+            match extract_multiple_pages(file_path, output_path, vec![page_num]) {
                 Ok(()) => {}
                 Err(e) => {
                     return Err(format!("Failed to extract page {}: {}", page_num, e));
@@ -61,7 +61,7 @@ pub fn do_split(file_path: &str, split_options: Vec<&str>) -> Result<String, Str
     Ok("PDF split completed successfully".into())
 }
 
-fn extract_multiple_pages(file_path: &str, target_pages: Vec<u32>) -> Result<(), Box<dyn std::error::Error>> {
+fn extract_multiple_pages(file_path: &str, output_path: &str, target_pages: Vec<u32>) -> Result<(), Box<dyn std::error::Error>> {
     let doc = Document::load(file_path)
         .map_err(|e| format!("Failed to load PDF '{}': {}", file_path, e))?;
     let pages = doc.get_pages();
@@ -102,7 +102,9 @@ fn extract_multiple_pages(file_path: &str, target_pages: Vec<u32>) -> Result<(),
         name = format!("page_{}", target_pages[0]);
     }
 
-    new_doc.save(format!("/home/madko/Downloads/{}.pdf", name))?;
+    std::fs::create_dir_all(output_path)?;
+
+    new_doc.save(format!("{}/{}.pdf", output_path, name))?;
 
     Ok(())
 }
@@ -208,7 +210,6 @@ fn setup_document_structure(doc: &mut Document, id_map: &BTreeMap<(u32, u16), (u
 
 // Function to set up document structure for multiple pages
 fn setup_multi_page_document_structure(doc: &mut Document, id_map: &BTreeMap<(u32, u16), (u32, u16)>, original_page_ids: &[(u32, u16)]) -> Result<(), Box<dyn std::error::Error>> {
-    // Map original page IDs to new page IDs
     let mut new_page_ids = Vec::new();
     for &original_id in original_page_ids {
         if let Some(&new_id) = id_map.get(&original_id) {
