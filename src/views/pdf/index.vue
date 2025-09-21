@@ -6,7 +6,7 @@
           PDF Tools
         </h1>
         <p class="text-gray-600 dark:text-gray-400">
-          Split, compress, and extract your PDF files with ease
+          Split, compress, and delete pages from your PDF files with ease
         </p>
       </div>
 
@@ -175,11 +175,9 @@
             <USelect v-model="compressionLevel" :options="compressionLevels" placeholder="Choose compression level" />
           </div>
 
-          <div v-if="selectedAction === 'extract'" class="space-y-4">
-            <UFormGroup label="Pages to Extract" help="e.g., 1-3, 5, 8-10">
-              <UInput v-model="extractOptions.pageRange" 
-                :placeholder="pdfPageCount > 0 ? `1-${pdfPageCount}, 5, 8-10` : '1-3, 5, 8-10'" />
-            </UFormGroup>
+          <div v-if="selectedAction === 'delete'" class="flex gap-2">
+            <UInput v-model="selectedDeletePages" type="number"
+              placeholder="5" min="1" />
           </div>
 
           <div class="space-y-4">
@@ -258,7 +256,7 @@ const progressText = ref('')
 const processResults = ref<Array<{ filename: string; path: string }>>([])
 const isSettingsOpen = ref(false)
 const pdfPageCount = ref(0)
-
+const selectedDeletePages = ref('1')
 const splitOptions = ref({
   method: 'pages',
   pageRange: '',
@@ -266,10 +264,6 @@ const splitOptions = ref({
 })
 
 const compressionLevel = ref('medium')
-
-const extractOptions = ref({
-  pageRange: ''
-})
 
 const actionOptions = [
   {
@@ -279,16 +273,16 @@ const actionOptions = [
     icon: 'i-heroicons-scissors'
   },
   {
+    value: 'delete',
+    label: 'Delete PDF',
+    description: 'Remove unwanted pages',
+    icon: 'i-heroicons-trash'
+  },
+  {
     value: 'compress',
     label: 'Compress PDF',
     description: 'Reduce file size',
     icon: 'i-heroicons-archive-box-arrow-down'
-  },
-  {
-    value: 'extract',
-    label: 'Extract Pages',
-    description: 'Extract specific pages',
-    icon: 'i-heroicons-document-arrow-down'
   }
 ]
 
@@ -399,7 +393,7 @@ const getActionIcon = (action: string): string => {
   const iconMap: Record<string, string> = {
     split: 'i-heroicons-scissors',
     compress: 'i-heroicons-archive-box-arrow-down',
-    extract: 'i-heroicons-document-arrow-down'
+    delete: 'i-heroicons-trash'
   }
   return iconMap[action] || 'i-heroicons-cog-6-tooth'
 }
@@ -408,7 +402,7 @@ const getActionButtonText = (action: string): string => {
   const textMap: Record<string, string> = {
     split: 'Split PDF File',
     compress: 'Compress PDF File',
-    extract: 'Extract PDF Pages'
+    delete: 'Delete PDF Pages'
   }
   return textMap[action] || 'Process File'
 }
@@ -499,36 +493,7 @@ const processPDF = async () => {
       })
       return
     }
-  }
-
-  // Validation for extract action
-  if (selectedAction.value === 'extract') {
-    if (pdfPageCount.value === 0) {
-      toast.add({
-        title: 'Error',
-        description: 'Unable to determine PDF page count. Please try selecting the file again.',
-        duration: 3000,
-        color: 'error',
-        ui: {
-          root: 'bg-white'
-        }
-      })
-      return
-    }
-
-    const validation = validatePageRange(extractOptions.value.pageRange, pdfPageCount.value)
-    if (!validation.isValid) {
-      toast.add({
-        title: 'Validation Error',
-        description: validation.error || 'Invalid page range',
-        duration: 4000,
-        color: 'error',
-        ui: {
-          root: 'bg-white'
-        }
-      })
-      return
-    }
+  } else if (selectedAction.value === 'delete') {
   }
 
   isSettingsOpen.value = false
@@ -564,18 +529,6 @@ const processPDF = async () => {
       toast.add({
         title: 'Info',
         description: 'Compress functionality coming soon!',
-        duration: 3000,
-        color: 'info',
-        ui: {
-          root: 'bg-white'
-        }
-      })
-      
-    } else if (selectedAction.value === 'extract') {
-      // TODO: Implement extract functionality
-      toast.add({
-        title: 'Info',
-        description: 'Extract functionality coming soon!',
         duration: 3000,
         color: 'info',
         ui: {
