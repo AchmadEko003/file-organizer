@@ -26,7 +26,8 @@ pub fn run() {
             folder_organize::organize_folder,
             folder_organize::search_file,
             pdf::get_pdf_page_count,
-            pdf::do_split
+            pdf::do_split,
+            pdf::do_delete_pages,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

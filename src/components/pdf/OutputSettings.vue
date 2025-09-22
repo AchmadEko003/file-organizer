@@ -22,10 +22,10 @@
       </div>
     </UFormGroup>
 
-    <div v-if="outputPath" class="text-sm text-gray-600 dark:text-gray-400">
+    <!-- <div v-if="outputPath" class="text-sm text-gray-600 dark:text-gray-400">
       <UIcon name="i-heroicons-folder" class="inline mr-1" />
       Files will be saved to: {{ outputPath }}
-    </div>
+    </div> -->
 
     <div v-if="!outputPath" class="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
       <div class="text-sm text-amber-700 dark:text-amber-300">
