@@ -5,7 +5,28 @@
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           PDF Tools
         </h1>
-        <p class="text-gray-600 dark:text-gray-400">
+        <p class="text-gray-600 daconst handleActionSelect = (action: string) => {
+  selectedAction.value = action as 'split' | 'compress' | 'delete'
+}
+
+const openSettingsDrawer = () => {
+  if (selectedAction.value) {
+    isSettingsOpen.value = true
+  }
+}
+
+const handleSettingsUpdate = (newSettings: PDFSettingsType) => {
+  pdfSettings.value = { ...newSettings }
+}
+
+const handleSettingsValidation = (isValid: boolean, errors: string[]) => {
+  settingsValidation.value = { isValid, errors }
+}
+
+const getActionLabel = (action: string): string => {
+  const option = actionOptions.find(opt => opt.value === action)
+  return option ? option.label : 'Action'
+}00">
           Split, compress, and delete pages from your PDF files with ease
         </p>
       </div>
@@ -92,7 +113,7 @@
             </div>
 
             <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <UButton v-if="selectedAction" color="primary" variant="solid" size="lg" block :disabled="!canProcess"
+              <UButton color="primary" variant="solid" size="lg" block
                 :loading="isProcessing" @click="openSettingsDrawer">
                 <UIcon :name="getActionIcon(selectedAction)" class="mr-2" />
                 Process {{ getActionLabel(selectedAction) }}
@@ -160,40 +181,13 @@
       </template>
 
       <template #body>
-        <div class="space-y-6">
-          <div v-if="selectedAction === 'split'" class="flex gap-2">
-            <USelect v-model="splitOptions.method" :items="splitMethods" placeholder="Choose split method" />
-
-            <UInput v-if="splitOptions.method === 'pages'" v-model="splitOptions.pageRange"
-              :placeholder="pdfPageCount > 0 ? `1-${pdfPageCount}, 7, 10-15` : '1-5, 7, 10-15'" />
-
-            <UInput v-if="splitOptions.method === 'interval'" v-model="splitOptions.interval" type="number"
-              placeholder="5" min="1" />
-          </div>
-
-          <div v-if="selectedAction === 'compress'" class="space-y-4">
-            <USelect v-model="compressionLevel" :options="compressionLevels" placeholder="Choose compression level" />
-          </div>
-
-          <div v-if="selectedAction === 'delete'" class="flex gap-2">
-            <UInput v-model="selectedDeletePages" type="number"
-              placeholder="5" min="1" />
-          </div>
-
-          <div class="space-y-4">
-            <USeparator label="Output Settings" />
-
-            <UFormGroup label="Save Location" help="Choose where to save the processed files">
-              <div class="flex gap-2">
-                <UInput v-model="outputPath" placeholder="Select output folder..." readonly class="flex-1" />
-                <UButton color="neutral" variant="outline" @click="selectOutputPath">
-                  <UIcon name="i-heroicons-folder" class="mr-2" />
-                  Browse
-                </UButton>
-              </div>
-            </UFormGroup>
-          </div>
-        </div>
+        <PDFSettings
+          :selected-action="selectedAction"
+          :settings="pdfSettings"
+          :pdf-page-count="pdfPageCount"
+          @update:settings="handleSettingsUpdate"
+          @validate="handleSettingsValidation"
+        />
       </template>
 
       <template #footer>
@@ -217,6 +211,8 @@ import { ref, computed, onMounted } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core';
 import { documentDir } from '@tauri-apps/api/path';
+import PDFSettings from '../../components/pdf/PDFSettings.vue'
+import type { PDFSettings as PDFSettingsType } from '../../components/pdf/types'
 
 const toast = useToast();
 
@@ -249,21 +245,24 @@ const getDefaultOutputPath = async (): Promise<string> => {
 
 const isProcessing = ref(false)
 const selectedFiles = ref<{ path: string; name: string; size?: number }[]>([])
-const selectedAction = ref('split')
-const outputPath = ref('')
+const selectedAction = ref<'split' | 'compress' | 'delete' | ''>('')
 const progressValue = ref(0)
 const progressText = ref('')
 const processResults = ref<Array<{ filename: string; path: string }>>([])
 const isSettingsOpen = ref(false)
 const pdfPageCount = ref(0)
-const selectedDeletePages = ref('1')
-const splitOptions = ref({
-  method: 'pages',
-  pageRange: '',
-  interval: 5
-})
+const settingsValidation = ref({ isValid: false, errors: [] as string[] })
 
-const compressionLevel = ref('medium')
+const pdfSettings = ref<PDFSettingsType>({
+  splitOptions: {
+    method: 'pages',
+    pageRange: '',
+    interval: 5
+  },
+  compressionLevel: 'medium',
+  deletePages: '',
+  outputPath: ''
+})
 
 const actionOptions = [
   {
@@ -286,34 +285,26 @@ const actionOptions = [
   }
 ]
 
-const splitMethods = [
-  { value: 'pages', label: 'By Range' },
-  { value: 'interval', label: 'By Interval' },
-  { value: 'all', label: 'Split All' }
-]
-
-const compressionLevels = ref([
-  { value: 'low', label: 'Low (Better Quality)' },
-  { value: 'medium', label: 'Medium (Balanced)' },
-  { value: 'high', label: 'High (Smaller Size)' }
-])
-
 const canProcess = computed(() => {
-  return selectedFiles.value.length > 0 && outputPath.value && selectedAction.value && !isProcessing.value
+  return selectedFiles.value.length > 0 && 
+         pdfSettings.value.outputPath && 
+         selectedAction.value && 
+         !isProcessing.value && 
+         settingsValidation.value.isValid
 })
 
 // Initialize default output path on component mount
 onMounted(async () => {
   try {
     const defaultPath = await getDefaultOutputPath();
-    outputPath.value = defaultPath;
+    pdfSettings.value.outputPath = defaultPath;
   } catch (error) {
     console.error('Error setting default output path:', error);
   }
 })
 
 const handleActionSelect = (action: string) => {
-  selectedAction.value = action
+  selectedAction.value = action as 'split' | 'compress' | 'delete'
 }
 
 const openSettingsDrawer = () => {
@@ -325,6 +316,14 @@ const openSettingsDrawer = () => {
 const getActionLabel = (action: string): string => {
   const option = actionOptions.find(opt => opt.value === action)
   return option ? option.label : 'Action'
+}
+
+const handleSettingsUpdate = (newSettings: PDFSettingsType) => {
+  pdfSettings.value = { ...newSettings }
+}
+
+const handleSettingsValidation = (isValid: boolean, errors: string[]) => {
+  settingsValidation.value = { isValid, errors }
 }
 
 const triggerFileInput = async () => {
@@ -373,53 +372,18 @@ const formatFileSize = (bytes: number | undefined): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-const selectOutputPath = async () => {
-  try {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: 'Select Output Folder'
-    })
-
-    if (selected && typeof selected === 'string') {
-      outputPath.value = selected
-    }
-  } catch (error) {
-    console.error('Error selecting output path:', error)
-  }
-}
-
-const getActionIcon = (action: string): string => {
-  const iconMap: Record<string, string> = {
-    split: 'i-heroicons-scissors',
-    compress: 'i-heroicons-archive-box-arrow-down',
-    delete: 'i-heroicons-trash'
-  }
-  return iconMap[action] || 'i-heroicons-cog-6-tooth'
-}
-
-const getActionButtonText = (action: string): string => {
-  const textMap: Record<string, string> = {
-    split: 'Split PDF File',
-    compress: 'Compress PDF File',
-    delete: 'Delete PDF Pages'
-  }
-  return textMap[action] || 'Process File'
-}
-
-// Validation function for page ranges
+// Validation function for page ranges (moved from processing)
 const validatePageRange = (pageRange: string, totalPages: number): { isValid: boolean; error?: string } => {
   if (!pageRange.trim()) {
     return { isValid: false, error: 'Page range cannot be empty' }
   }
 
   try {
-    const ranges = pageRange.split(',').map(r => r.trim()).filter(r => r.length > 0)
+    const ranges = pageRange.split(',').map((r: string) => r.trim()).filter((r: string) => r.length > 0)
     
     for (const range of ranges) {
       if (range.includes('-')) {
-        // Handle range like "1-5"
-        const [startStr, endStr] = range.split('-').map(s => s.trim())
+        const [startStr, endStr] = range.split('-').map((s: string) => s.trim())
         const start = parseInt(startStr)
         const end = parseInt(endStr)
         
@@ -439,7 +403,6 @@ const validatePageRange = (pageRange: string, totalPages: number): { isValid: bo
           return { isValid: false, error: `Invalid range "${range}": start page must be less than or equal to end page` }
         }
       } else {
-        // Handle single page like "7"
         const page = parseInt(range)
         
         if (isNaN(page)) {
@@ -462,11 +425,29 @@ const validatePageRange = (pageRange: string, totalPages: number): { isValid: bo
   }
 }
 
+const getActionIcon = (action: string): string => {
+  const iconMap: Record<string, string> = {
+    split: 'i-heroicons-scissors',
+    compress: 'i-heroicons-archive-box-arrow-down',
+    delete: 'i-heroicons-trash'
+  }
+  return iconMap[action] || 'i-heroicons-cog-6-tooth'
+}
+
+const getActionButtonText = (action: string): string => {
+  const textMap: Record<string, string> = {
+    split: 'Split PDF File',
+    compress: 'Compress PDF File',
+    delete: 'Delete PDF Pages'
+  }
+  return textMap[action] || 'Process File'
+}
+
 const processPDF = async () => {
   if (!canProcess.value) return
 
-  // Validation for split action
-  if (selectedAction.value === 'split' && splitOptions.value.method === 'pages') {
+  // Additional validation for split action
+  if (selectedAction.value === 'split' && pdfSettings.value.splitOptions.method === 'pages') {
     if (pdfPageCount.value === 0) {
       toast.add({
         title: 'Error',
@@ -480,7 +461,7 @@ const processPDF = async () => {
       return
     }
 
-    const validation = validatePageRange(splitOptions.value.pageRange, pdfPageCount.value)
+    const validation = validatePageRange(pdfSettings.value.splitOptions.pageRange, pdfPageCount.value)
     if (!validation.isValid) {
       toast.add({
         title: 'Validation Error',
@@ -493,7 +474,6 @@ const processPDF = async () => {
       })
       return
     }
-  } else if (selectedAction.value === 'delete') {
   }
 
   isSettingsOpen.value = false
@@ -503,10 +483,10 @@ const processPDF = async () => {
     if (selectedAction.value === 'split') {
       let pages: string[] = []
 
-      if (splitOptions.value.method === 'pages') {
-        pages = splitOptions.value.pageRange.split(',').map(r => r.trim())
+      if (pdfSettings.value.splitOptions.method === 'pages') {
+        pages = pdfSettings.value.splitOptions.pageRange.split(',').map((r: string) => r.trim())
       } else {
-        const end = splitOptions.value.method === 'interval' ? splitOptions.value.interval : pdfPageCount.value
+        const end = pdfSettings.value.splitOptions.method === 'interval' ? pdfSettings.value.splitOptions.interval : pdfPageCount.value
         for (let i = 1; i <= end; i++) {
           pages.push(i.toString())
         }
@@ -514,11 +494,10 @@ const processPDF = async () => {
 
       const result = await invoke('do_split', {
         filePath: selectedFiles.value[0].path,
-        outputPath: outputPath.value,
+        outputPath: pdfSettings.value.outputPath,
         splitOptions: pages
       }) as string
 
-      // Show success toast with result message
       toast.add({
         title: 'Success',
         description: result || 'PDF split completed successfully!',
@@ -529,12 +508,10 @@ const processPDF = async () => {
         }
       })
 
-      // Reset form after successful processing
       selectedFiles.value = []
       selectedAction.value = ''
       
     } else if (selectedAction.value === 'compress') {
-      // TODO: Implement compress functionality
       toast.add({
         title: 'Info',
         description: 'Compress functionality coming soon!',
@@ -549,7 +526,6 @@ const processPDF = async () => {
   } catch (error) {
     console.error('Error processing PDF:', error)
     
-    // Show error toast
     toast.add({
       title: 'Error',
       description: 'Failed to process PDF. Please try again.',
