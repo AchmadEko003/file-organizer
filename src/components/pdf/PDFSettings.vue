@@ -3,31 +3,27 @@
     <!-- Action-specific settings -->
     <SplitSettings
       v-if="selectedAction === 'split'"
-      :split-options="splitOptions"
+      v-model:split-options="settings.splitOptions"
       :pdf-page-count="pdfPageCount"
-      @update:split-options="handleSplitOptionsUpdate"
       @validate="handleSplitValidation"
     />
 
     <CompressSettings
       v-if="selectedAction === 'compress'"
-      :compression-level="compressionLevel"
-      @update:compression-level="handleCompressionLevelUpdate"
+      v-model:compression-level="settings.compressionLevel"
       @validate="handleCompressValidation"
     />
 
     <DeleteSettings
       v-if="selectedAction === 'delete'"
-      :delete-pages="deletePages"
+      v-model:delete-pages="settings.deletePages"
       :pdf-page-count="pdfPageCount"
-      @update:delete-pages="handleDeletePagesUpdate"
       @validate="handleDeleteValidation"
     />
 
     <!-- Output settings (common for all actions) -->
     <OutputSettings
-      :output-path="outputPath"
-      @update:output-path="handleOutputPathUpdate"
+      v-model:output-path="settings.outputPath"
       @validate="handleOutputValidation"
     />
   </div>
@@ -39,43 +35,39 @@ import SplitSettings from './SplitSettings.vue'
 import CompressSettings from './CompressSettings.vue'
 import DeleteSettings from './DeleteSettings.vue'
 import OutputSettings from './OutputSettings.vue'
-import type { SplitOptions } from './SplitSettings.vue'
-import type { CompressionLevel } from './CompressSettings.vue'
 import type { PDFSettings } from './types'
 
 interface Props {
   selectedAction: 'split' | 'compress' | 'delete' | ''
-  settings: PDFSettings
   pdfPageCount: number
 }
 
 interface Emits {
-  (e: 'update:settings', value: PDFSettings): void
   (e: 'validate', isValid: boolean, errors: string[]): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Local settings state
-const splitOptions = ref<SplitOptions>({ ...props.settings.splitOptions })
-const compressionLevel = ref<CompressionLevel>(props.settings.compressionLevel)
-const deletePages = ref<string>(props.settings.deletePages)
-const outputPath = ref<string>(props.settings.outputPath)
+const settings = defineModel<PDFSettings>('settings', {
+  required: true,
+  default: () => ({
+    splitOptions: {
+      method: 'pages',
+      pageRange: '',
+      interval: 5
+    },
+    compressionLevel: 'medium',
+    deletePages: '',
+    outputPath: ''
+  })
+})
 
 // Validation states
 const splitValidation = ref({ isValid: true, error: undefined as string | undefined })
 const compressValidation = ref({ isValid: true, error: undefined as string | undefined })
 const deleteValidation = ref({ isValid: true, error: undefined as string | undefined })
 const outputValidation = ref({ isValid: true, error: undefined as string | undefined })
-
-// Watch for external settings changes
-watch(() => props.settings, (newSettings) => {
-  splitOptions.value = { ...newSettings.splitOptions }
-  compressionLevel.value = newSettings.compressionLevel
-  deletePages.value = newSettings.deletePages
-  outputPath.value = newSettings.outputPath
-}, { deep: true })
 
 // Computed overall validation
 const isValid = computed(() => {
@@ -124,65 +116,33 @@ const validationErrors = computed(() => {
 })
 
 // Emit settings and validation changes
-const emitChanges = () => {
-  const updatedSettings: PDFSettings = {
-    splitOptions: { ...splitOptions.value },
-    compressionLevel: compressionLevel.value,
-    deletePages: deletePages.value,
-    outputPath: outputPath.value
-  }
-  
-  emit('update:settings', updatedSettings)
+const emitValidation = () => {
   emit('validate', isValid.value, validationErrors.value)
-}
-
-// Handler functions
-const handleSplitOptionsUpdate = (newSplitOptions: SplitOptions) => {
-  splitOptions.value = { ...newSplitOptions }
-  emitChanges()
-}
-
-const handleCompressionLevelUpdate = (newCompressionLevel: CompressionLevel) => {
-  compressionLevel.value = newCompressionLevel
-  emitChanges()
-}
-
-const handleDeletePagesUpdate = (newDeletePages: string) => {
-  deletePages.value = newDeletePages
-  emitChanges()
-}
-
-const handleOutputPathUpdate = (newOutputPath: string) => {
-  outputPath.value = newOutputPath
-  emitChanges()
 }
 
 // Validation handlers
 const handleSplitValidation = (valid: boolean, error?: string) => {
   splitValidation.value = { isValid: valid, error }
-  emitChanges()
+  emitValidation()
 }
 
 const handleCompressValidation = (valid: boolean, error?: string) => {
   compressValidation.value = { isValid: valid, error }
-  emitChanges()
+  emitValidation()
 }
 
 const handleDeleteValidation = (valid: boolean, error?: string) => {
   deleteValidation.value = { isValid: valid, error }
-  emitChanges()
+  emitValidation()
 }
 
 const handleOutputValidation = (valid: boolean, error?: string) => {
   outputValidation.value = { isValid: valid, error }
-  emitChanges()
+  emitValidation()
 }
 
 // Watch for validation changes
 watch([isValid, validationErrors], () => {
   emit('validate', isValid.value, validationErrors.value)
 })
-
-// Initial validation
-emitChanges()
 </script>

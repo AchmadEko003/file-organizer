@@ -5,11 +5,10 @@
     <UFormGroup label="Save Location" help="Choose where to save the processed files">
       <div class="flex gap-2">
         <UInput 
-          v-model="localOutputPath" 
+          v-model="outputPath" 
           placeholder="Select output folder..." 
           readonly 
           class="flex-1"
-          @update:model-value="handleOutputPathChange"
         />
         <UButton 
           color="neutral" 
@@ -23,12 +22,12 @@
       </div>
     </UFormGroup>
 
-    <div v-if="localOutputPath" class="text-sm text-gray-600 dark:text-gray-400">
+    <div v-if="outputPath" class="text-sm text-gray-600 dark:text-gray-400">
       <UIcon name="i-heroicons-folder" class="inline mr-1" />
-      Files will be saved to: {{ localOutputPath }}
+      Files will be saved to: {{ outputPath }}
     </div>
 
-    <div v-if="!localOutputPath" class="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+    <div v-if="!outputPath" class="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
       <div class="text-sm text-amber-700 dark:text-amber-300">
         <UIcon name="i-heroicons-exclamation-triangle" class="inline mr-1" />
         Please select an output folder to save the processed files.
@@ -41,25 +40,18 @@
 import { ref, watch } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 
-interface Props {
-  outputPath: string
-}
-
 interface Emits {
-  (e: 'update:outputPath', value: string): void
   (e: 'validate', isValid: boolean, error?: string): void
 }
 
-const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const localOutputPath = ref<string>(props.outputPath)
-const isSelecting = ref(false)
-
-// Watch for external changes
-watch(() => props.outputPath, (newValue) => {
-  localOutputPath.value = newValue
+const outputPath = defineModel<string>('outputPath', {
+  required: true,
+  default: ''
 })
+
+const isSelecting = ref(false)
 
 const selectOutputPath = async () => {
   try {
@@ -72,8 +64,7 @@ const selectOutputPath = async () => {
     })
 
     if (selected && typeof selected === 'string') {
-      localOutputPath.value = selected
-      handleOutputPathChange()
+      outputPath.value = selected
     }
   } catch (error) {
     console.error('Error selecting output path:', error)
@@ -82,12 +73,9 @@ const selectOutputPath = async () => {
   }
 }
 
-const handleOutputPathChange = () => {
-  emit('update:outputPath', localOutputPath.value)
-  const isValid = !!localOutputPath.value.trim()
+// Watch outputPath changes and emit validation
+watch(outputPath, () => {
+  const isValid = !!outputPath.value.trim()
   emit('validate', isValid, isValid ? undefined : 'Please select an output folder')
-}
-
-// Initial validation
-handleOutputPathChange()
+}, { immediate: true })
 </script>

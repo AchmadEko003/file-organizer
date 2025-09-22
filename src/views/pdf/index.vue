@@ -183,9 +183,8 @@ const getActionLabel = (action: string): string => {
       <template #body>
         <PDFSettings
           :selected-action="selectedAction"
-          :settings="pdfSettings"
+          v-model:settings="pdfSettings"
           :pdf-page-count="pdfPageCount"
-          @update:settings="handleSettingsUpdate"
           @validate="handleSettingsValidation"
         />
       </template>
@@ -316,10 +315,6 @@ const openSettingsDrawer = () => {
 const getActionLabel = (action: string): string => {
   const option = actionOptions.find(opt => opt.value === action)
   return option ? option.label : 'Action'
-}
-
-const handleSettingsUpdate = (newSettings: PDFSettingsType) => {
-  pdfSettings.value = { ...newSettings }
 }
 
 const handleSettingsValidation = (isValid: boolean, errors: string[]) => {

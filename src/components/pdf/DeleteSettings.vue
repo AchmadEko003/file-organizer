@@ -2,10 +2,9 @@
   <div class="space-y-4">
     <div class="flex gap-2">
       <UInput 
-        v-model="localDeletePages" 
+        v-model="deletePages" 
         type="text"
         placeholder="1,3,5-10"
-        @update:model-value="handleDeletePagesChange"
       />
     </div>
 
@@ -22,14 +21,14 @@
         </div>
       </div>
 
-      <div v-if="localDeletePages && isValid" class="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+      <div v-if="deletePages && isValid" class="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
         <div class="text-sm text-amber-700 dark:text-amber-300">
           <UIcon name="i-heroicons-exclamation-triangle" class="inline mr-1" />
           <strong>Warning:</strong> {{ getDeleteSummary() }}
         </div>
       </div>
 
-      <div v-if="localDeletePages && !isValid && validationError" class="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+      <div v-if="deletePages && !isValid && validationError" class="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
         <div class="text-sm text-red-700 dark:text-red-300">
           <UIcon name="i-heroicons-x-circle" class="inline mr-1" />
           {{ validationError }}
@@ -40,31 +39,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { computed, watch } from 'vue'
 
 interface Props {
-  deletePages: string
   pdfPageCount: number
 }
 
 interface Emits {
-  (e: 'update:deletePages', value: string): void
   (e: 'validate', isValid: boolean, error?: string): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const localDeletePages = ref<string>(props.deletePages)
-
-// Watch for external changes
-watch(() => props.deletePages, (newValue) => {
-  localDeletePages.value = newValue
+const deletePages = defineModel<string>('deletePages', {
+  required: true,
+  default: ''
 })
 
 // Validation logic
 const validationResult = computed(() => {
-  return validateDeletePages(localDeletePages.value, props.pdfPageCount)
+  return validateDeletePages(deletePages.value, props.pdfPageCount)
 })
 
 const isValid = computed(() => validationResult.value.isValid)
@@ -72,10 +67,10 @@ const validationError = computed(() => validationResult.value.error)
 
 // Parse and get unique pages to delete
 const getPagesToDelete = (): number[] => {
-  if (!localDeletePages.value.trim() || !isValid.value) return []
+  if (!deletePages.value.trim() || !isValid.value) return []
 
   const pages = new Set<number>()
-  const ranges = localDeletePages.value.split(',').map(r => r.trim()).filter(r => r.length > 0)
+  const ranges = deletePages.value.split(',').map(r => r.trim()).filter(r => r.length > 0)
   
   for (const range of ranges) {
     if (range.includes('-')) {
@@ -176,16 +171,8 @@ const validateDeletePages = (deletePages: string, totalPages: number): { isValid
   }
 }
 
-const handleDeletePagesChange = () => {
-  emit('update:deletePages', localDeletePages.value)
-  emit('validate', isValid.value, validationError.value)
-}
-
-// Watch for validation changes
+// Watch for validation changes and emit
 watch([isValid, validationError], () => {
   emit('validate', isValid.value, validationError.value)
-})
-
-// Initial validation
-handleDeletePagesChange()
+}, { immediate: true })
 </script>
