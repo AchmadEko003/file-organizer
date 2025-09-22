@@ -501,13 +501,22 @@ const processPDF = async () => {
 
   try {
     if (selectedAction.value === 'split') {
+      let pages: string[] = []
+
+      if (splitOptions.value.method === 'pages') {
+        pages = splitOptions.value.pageRange.split(',').map(r => r.trim())
+      } else {
+        const end = splitOptions.value.method === 'interval' ? splitOptions.value.interval : pdfPageCount.value
+        for (let i = 1; i <= end; i++) {
+          pages.push(i.toString())
+        }
+      }
+
       const result = await invoke('do_split', {
         filePath: selectedFiles.value[0].path,
         outputPath: outputPath.value,
-        splitOptions: splitOptions.value.pageRange.split(',').map(r => r.trim())
+        splitOptions: pages
       }) as string
-
-      console.log('Split result:', result)
 
       // Show success toast with result message
       toast.add({
