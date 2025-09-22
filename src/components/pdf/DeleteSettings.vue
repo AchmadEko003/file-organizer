@@ -15,8 +15,8 @@
           <p><strong>Examples:</strong></p>
           <ul class="list-disc list-inside space-y-1 ml-2">
             <li>"1,3,5" - Delete specific pages 1, 3, and 5</li>
-            <li>"1-5" - Delete pages 1 through 5</li>
-            <li>"1,3,7-10" - Delete page 1, 3, and pages 7 through 10</li>
+            <!-- <li>"1-5" - Delete pages 1 through 5</li>
+            <li>"1,3,7-10" - Delete page 1, 3, and pages 7 through 10</li> -->
           </ul>
         </div>
       </div>

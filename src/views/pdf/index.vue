@@ -92,8 +92,8 @@
             </div>
 
             <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <UButton color="primary" variant="solid" size="lg" block
-                :loading="isProcessing" @click="openSettingsDrawer">
+              <UButton color="primary" variant="solid" size="lg" block :loading="isProcessing"
+                @click="openSettingsDrawer">
                 <UIcon :name="getActionIcon(selectedAction)" class="mr-2" />
                 Process {{ getActionLabel(selectedAction) }}
               </UButton>
@@ -146,8 +146,7 @@
 
     <UDrawer v-model:open="isSettingsOpen" direction="right" :ui="{
       overlay: 'bg-black/20',
-    }"
-      :title="`${getActionLabel(selectedAction)} Settings`">
+    }" :title="`${getActionLabel(selectedAction)} Settings`">
       <div style="display: none;"></div>
 
       <template #header>
@@ -160,12 +159,8 @@
       </template>
 
       <template #body>
-        <PDFSettings
-          :selected-action="selectedAction"
-          v-model:settings="pdfSettings"
-          :pdf-page-count="pdfPageCount"
-          @validate="handleSettingsValidation"
-        />
+        <PDFSettings :selected-action="selectedAction" v-model:settings="pdfSettings" :pdf-page-count="pdfPageCount"
+          @validate="handleSettingsValidation" />
       </template>
 
       <template #footer>
@@ -198,17 +193,17 @@ const toast = useToast();
 const getDefaultOutputPath = async (): Promise<string> => {
   try {
     const documentPath = await documentDir();
-    
+
     const isWindows = documentPath.includes('\\') || documentPath.includes('C:');
-    
+
     let defaultPath: string;
-    
+
     if (isWindows) {
       defaultPath = `${documentPath}\\docutools`;
     } else {
       defaultPath = `${documentPath}/docutools`;
     }
-    
+
     return defaultPath;
   } catch (error) {
     console.error('Error getting default output path:', error);
@@ -255,20 +250,20 @@ const actionOptions = [
     description: 'Remove unwanted pages',
     icon: 'i-heroicons-trash'
   },
-  {
-    value: 'compress',
-    label: 'Compress PDF',
-    description: 'Reduce file size',
-    icon: 'i-heroicons-archive-box-arrow-down'
-  }
+  // {
+  //   value: 'compress',
+  //   label: 'Compress PDF',
+  //   description: 'Reduce file size',
+  //   icon: 'i-heroicons-archive-box-arrow-down'
+  // }
 ]
 
 const canProcess = computed(() => {
-  return selectedFiles.value.length > 0 && 
-         pdfSettings.value.outputPath && 
-         selectedAction.value && 
-         !isProcessing.value && 
-         settingsValidation.value.isValid
+  return selectedFiles.value.length > 0 &&
+    pdfSettings.value.outputPath &&
+    selectedAction.value &&
+    !isProcessing.value &&
+    settingsValidation.value.isValid
 })
 
 // Initialize default output path on component mount
@@ -354,45 +349,45 @@ const validatePageRange = (pageRange: string, totalPages: number): { isValid: bo
 
   try {
     const ranges = pageRange.split(',').map((r: string) => r.trim()).filter((r: string) => r.length > 0)
-    
+
     for (const range of ranges) {
       if (range.includes('-')) {
         const [startStr, endStr] = range.split('-').map((s: string) => s.trim())
         const start = parseInt(startStr)
         const end = parseInt(endStr)
-        
+
         if (isNaN(start) || isNaN(end)) {
           return { isValid: false, error: `Invalid page range format: "${range}"` }
         }
-        
+
         if (start < 1) {
           return { isValid: false, error: `Page numbers must start from 1. Found: ${start}` }
         }
-        
+
         if (end > totalPages) {
           return { isValid: false, error: `Page ${end} exceeds total pages (${totalPages})` }
         }
-        
+
         if (start > end) {
           return { isValid: false, error: `Invalid range "${range}": start page must be less than or equal to end page` }
         }
       } else {
         const page = parseInt(range)
-        
+
         if (isNaN(page)) {
           return { isValid: false, error: `Invalid page number: "${range}"` }
         }
-        
+
         if (page < 1) {
           return { isValid: false, error: `Page numbers must start from 1. Found: ${page}` }
         }
-        
+
         if (page > totalPages) {
           return { isValid: false, error: `Page ${page} exceeds total pages (${totalPages})` }
         }
       }
     }
-    
+
     return { isValid: true }
   } catch (error) {
     return { isValid: false, error: 'Invalid page range format' }
@@ -420,34 +415,17 @@ const getActionButtonText = (action: string): string => {
 const processPDF = async () => {
   if (!canProcess.value) return
 
-  // Additional validation for split action
-  if (selectedAction.value === 'split' && pdfSettings.value.splitOptions.method === 'pages') {
-    if (pdfPageCount.value === 0) {
-      toast.add({
-        title: 'Error',
-        description: 'Unable to determine PDF page count. Please try selecting the file again.',
-        duration: 3000,
-        color: 'error',
-        ui: {
-          root: 'bg-white'
-        }
-      })
-      return
-    }
-
-    const validation = validatePageRange(pdfSettings.value.splitOptions.pageRange, pdfPageCount.value)
-    if (!validation.isValid) {
-      toast.add({
-        title: 'Validation Error',
-        description: validation.error || 'Invalid page range',
-        duration: 4000,
-        color: 'error',
-        ui: {
-          root: 'bg-white'
-        }
-      })
-      return
-    }
+  if (pdfPageCount.value === 0) {
+    toast.add({
+      title: 'Error',
+      description: 'Unable to determine PDF page count. Please try selecting the file again.',
+      duration: 3000,
+      color: 'error',
+      ui: {
+        root: 'bg-white'
+      }
+    })
+    return
   }
 
   isSettingsOpen.value = false
@@ -458,6 +436,20 @@ const processPDF = async () => {
       let pages: string[] = []
 
       if (pdfSettings.value.splitOptions.method === 'pages') {
+        const validation = validatePageRange(pdfSettings.value.splitOptions.pageRange, pdfPageCount.value)
+        if (!validation.isValid) {
+          toast.add({
+            title: 'Validation Error',
+            description: validation.error || 'Invalid page range',
+            duration: 4000,
+            color: 'error',
+            ui: {
+              root: 'bg-white'
+            }
+          })
+          return
+        }
+
         pages = pdfSettings.value.splitOptions.pageRange.split(',').map((r: string) => r.trim())
       } else {
         const end = pdfSettings.value.splitOptions.method === 'interval' ? pdfSettings.value.splitOptions.interval : pdfPageCount.value
@@ -483,7 +475,7 @@ const processPDF = async () => {
       })
 
       selectedFiles.value = []
-      
+
     } else if (selectedAction.value === 'compress') {
       toast.add({
         title: 'Info',
@@ -494,11 +486,43 @@ const processPDF = async () => {
           root: 'bg-white'
         }
       })
-    }
+    } else if (selectedAction.value === 'delete') {
 
+      const validation = validatePageRange(pdfSettings.value.deletePages, pdfPageCount.value)
+      if (!validation.isValid) {
+        toast.add({
+          title: 'Validation Error',
+          description: validation.error || 'Invalid pages to delete',
+          duration: 4000,
+          color: 'error',
+          ui: {
+            root: 'bg-white'
+          }
+        })
+        return
+      }
+
+      const result = await invoke('do_delete_pages', {
+        filePath: selectedFiles.value[0].path,
+        outputPath: pdfSettings.value.outputPath,
+        selectedPages: pdfSettings.value.deletePages.split(',').map(p => parseInt(p.trim()))
+      }) as string
+
+      toast.add({
+        title: 'Success',
+        description: result || 'Pages deleted successfully!',
+        duration: 3000,
+        color: 'success',
+        ui: {
+          root: 'bg-white'
+        }
+      })
+
+      selectedFiles.value = []
+    }
   } catch (error) {
     console.error('Error processing PDF:', error)
-    
+
     toast.add({
       title: 'Error',
       description: 'Failed to process PDF. Please try again.',
