@@ -1,32 +1,11 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+  <div class="bg-gray-50 dark:bg-gray-900 p-6">
     <div class="max-w-full mx-auto">
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           PDF Tools
         </h1>
-        <p class="text-gray-600 daconst handleActionSelect = (action: string) => {
-  selectedAction.value = action as 'split' | 'compress' | 'delete'
-}
-
-const openSettingsDrawer = () => {
-  if (selectedAction.value) {
-    isSettingsOpen.value = true
-  }
-}
-
-const handleSettingsUpdate = (newSettings: PDFSettingsType) => {
-  pdfSettings.value = { ...newSettings }
-}
-
-const handleSettingsValidation = (isValid: boolean, errors: string[]) => {
-  settingsValidation.value = { isValid, errors }
-}
-
-const getActionLabel = (action: string): string => {
-  const option = actionOptions.find(opt => opt.value === action)
-  return option ? option.label : 'Action'
-}00">
+        <p class="text-gray-600">
           Split, compress, and delete pages from your PDF files with ease
         </p>
       </div>
@@ -244,7 +223,7 @@ const getDefaultOutputPath = async (): Promise<string> => {
 
 const isProcessing = ref(false)
 const selectedFiles = ref<{ path: string; name: string; size?: number }[]>([])
-const selectedAction = ref<'split' | 'compress' | 'delete' | ''>('')
+const selectedAction = ref<'split' | 'compress' | 'delete'>('split')
 const progressValue = ref(0)
 const progressText = ref('')
 const processResults = ref<Array<{ filename: string; path: string }>>([])
@@ -504,7 +483,6 @@ const processPDF = async () => {
       })
 
       selectedFiles.value = []
-      selectedAction.value = ''
       
     } else if (selectedAction.value === 'compress') {
       toast.add({

@@ -6,7 +6,7 @@
         <Navigation />
       </aside>
 
-      <main class="flex-1 overflow-y-auto">
+      <main class="flex-1 max-h-screen overflow-y-auto">
         <RouterView />
       </main>
     </div>

@@ -11,7 +11,11 @@ const items = ref<NavigationMenuItem[][]>([
     },
     {
       label: 'Other Tools',
-      type: 'label'
+      type: 'label',
+      ui: {
+        item: 'active:scale-none cursor-default'
+      },
+      disabled: true
     },
     {
       label: 'PDF',
