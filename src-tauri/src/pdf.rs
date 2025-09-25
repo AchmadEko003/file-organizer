@@ -281,3 +281,69 @@ fn setup_multi_page_document_structure(
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn do_merge_pdfs(
+    file_paths: Vec<&str>,
+    output_path: &str,
+) -> Result<String, String> {
+    if file_paths.len() < 2 {
+        return Err("At least 2 PDF files are required for merging".to_string());
+    }
+
+    // Check if all files exist
+    for file_path in &file_paths {
+        if !std::path::Path::new(file_path).exists() {
+            return Err(format!("File not found: {}", file_path));
+        }
+    }
+
+    merge_pdfs_using_extraction(&file_paths, output_path)
+        .map_err(|e| format!("Failed to merge PDFs: {}", e))?;
+
+    Ok(format!("Successfully merged {} PDFs into {}", file_paths.len(), output_path))
+}
+
+fn merge_pdfs_using_extraction(
+    file_paths: &[&str],
+    output_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = std::path::Path::new(output_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let mut merged_doc = Document::with_version("1.5");
+    let mut all_objects = BTreeMap::new();
+    let mut all_page_ids = Vec::new();
+
+    for file_path in file_paths {
+        let doc = Document::load(file_path)?;
+        let pages = doc.get_pages();
+
+        // Get all page numbers in order
+        let mut page_numbers: Vec<_> = pages.keys().cloned().collect();
+        page_numbers.sort();
+
+        // Collect content from all pages in this PDF
+        for page_num in page_numbers {
+            if let Some(&page_id) = pages.get(&page_num) {
+                collect_page_content(&doc, page_id, &mut all_objects)?;
+                all_page_ids.push(page_id);
+            }
+        }
+    }
+
+    // Copy all collected objects to the new document
+    let mut id_map = BTreeMap::new();
+    for (old_id, obj) in all_objects {
+        let new_id = merged_doc.add_object(obj);
+        id_map.insert(old_id, new_id);
+    }
+
+    update_references(&mut merged_doc, &id_map)?;
+    setup_multi_page_document_structure(&mut merged_doc, &id_map, &all_page_ids)?;
+
+    merged_doc.save(output_path)?;
+
+    Ok(())
+}

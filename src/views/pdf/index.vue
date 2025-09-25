@@ -15,7 +15,9 @@
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-heroicons-document-text" class="text-xl" />
-              <h2 class="text-lg font-semibold">Select PDF File</h2>
+              <h2 class="text-lg font-semibold">
+                {{ selectedAction === 'merge' ? 'Select PDF Files (Max 2)' : 'Select PDF File' }}
+              </h2>
             </div>
           </template>
 
@@ -23,24 +25,41 @@
             class="border-2 border-dashed rounded-lg p-8 text-center border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
             <UIcon name="i-heroicons-cloud-arrow-up" class="text-4xl text-gray-400 dark:text-gray-500 mb-4 mx-auto" />
             <p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select PDF file
+              {{ selectedAction === 'merge' ? 'Select PDF files' : 'Select PDF file' }}
             </p>
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              Click to browse for PDF file
+              {{ selectedAction === 'merge' ? 'Click to add PDF files (max 2)' : 'Click to browse for PDF file' }}
             </p>
             <UButton color="primary" variant="solid" size="lg" @click="triggerFileInput" :loading="isProcessing">
               <UIcon name="i-heroicons-folder-open" class="mr-2" />
-              Browse File
+              {{ selectedAction === 'merge' ? 'Add PDF File' : 'Browse File' }}
             </UButton>
           </div>
 
           <div v-if="selectedFiles.length > 0" class="mt-6">
-            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Selected File
-            </h3>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ selectedAction === 'merge' ? `Selected Files (${selectedFiles.length}/2)` : 'Selected File' }}
+              </h3>
+              <UButton 
+                v-if="selectedAction === 'merge' && selectedFiles.length < 2"
+                color="primary" 
+                variant="outline" 
+                size="sm" 
+                @click="triggerFileInput"
+              >
+                <UIcon name="i-heroicons-plus" class="mr-1" />
+                Add File
+              </UButton>
+            </div>
             <div class="space-y-2">
               <div v-for="(file, index) in selectedFiles" :key="index"
-                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <!-- Order indicator for merge -->
+                <div v-if="selectedAction === 'merge'" class="flex items-center justify-center w-8 h-8 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium flex-shrink-0">
+                  {{ index + 1 }}
+                </div>
+                
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <UIcon name="i-heroicons-document-text" class="text-red-500 flex-shrink-0" />
                   <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
@@ -49,7 +68,10 @@
                   <span class="text-xs text-gray-500 flex-shrink-0">
                     ({{ formatFileSize(file.size) }})
                   </span>
-                  <span v-if="pdfPageCount > 0" class="text-xs text-blue-600 dark:text-blue-400 flex-shrink-0">
+                  <span v-if="file.pageCount && file.pageCount > 0" class="text-xs text-blue-600 dark:text-blue-400 flex-shrink-0">
+                    {{ file.pageCount }} pages
+                  </span>
+                  <span v-else-if="selectedAction !== 'merge' && pdfPageCount > 0" class="text-xs text-blue-600 dark:text-blue-400 flex-shrink-0">
                     {{ pdfPageCount }} pages
                   </span>
                 </div>
@@ -57,6 +79,21 @@
                   <UIcon name="i-heroicons-x-mark" />
                 </UButton>
               </div>
+            </div>
+            
+            <!-- Merge preview -->
+            <div v-if="selectedAction === 'merge' && selectedFiles.length > 1" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div class="flex items-center gap-2 mb-2">
+                <UIcon name="i-heroicons-information-circle" class="text-blue-500" />
+                <span class="text-sm font-medium text-blue-700 dark:text-blue-300">Merge Preview</span>
+              </div>
+              <p class="text-sm text-blue-600 dark:text-blue-400">
+                Files will be merged in order: 
+                <strong>{{ selectedFiles.map(f => f.name).join(' → ') }}</strong>
+              </p>
+              <p class="text-xs text-blue-500 dark:text-blue-500 mt-1">
+                Total pages: {{ selectedFiles.reduce((sum, file) => sum + (file.pageCount || 0), 0) }}
+              </p>
             </div>
           </div>
         </UCard>
@@ -159,8 +196,14 @@
       </template>
 
       <template #body>
-        <PDFSettings :selected-action="selectedAction" v-model:settings="pdfSettings" :pdf-page-count="pdfPageCount"
-          @validate="handleSettingsValidation" />
+        <PDFSettings 
+          :selected-action="selectedAction" 
+          v-model:settings="pdfSettings" 
+          :pdf-page-count="pdfPageCount"
+          :selected-files="selectedFiles"
+          @validate="handleSettingsValidation" 
+          @file-reorder="handleFileReorder"
+        />
       </template>
 
       <template #footer>
@@ -217,8 +260,8 @@ const getDefaultOutputPath = async (): Promise<string> => {
 };
 
 const isProcessing = ref(false)
-const selectedFiles = ref<{ path: string; name: string; size?: number }[]>([])
-const selectedAction = ref<'split' | 'compress' | 'delete'>('split')
+const selectedFiles = ref<{ path: string; name: string; size?: number; pageCount?: number }[]>([])
+const selectedAction = ref<'split' | 'compress' | 'delete' | 'merge'>('split')
 const progressValue = ref(0)
 const progressText = ref('')
 const processResults = ref<Array<{ filename: string; path: string }>>([])
@@ -234,6 +277,9 @@ const pdfSettings = ref<PDFSettingsType>({
   },
   compressionLevel: 'medium',
   deletePages: '',
+  mergeOptions: {
+    files: []
+  },
   outputPath: ''
 })
 
@@ -250,6 +296,12 @@ const actionOptions = [
     description: 'Remove unwanted pages',
     icon: 'i-heroicons-trash'
   },
+  {
+    value: 'merge',
+    label: 'Merge PDF',
+    description: 'Combine multiple PDFs',
+    icon: 'i-heroicons-document-duplicate'
+  }
   // {
   //   value: 'compress',
   //   label: 'Compress PDF',
@@ -259,6 +311,14 @@ const actionOptions = [
 ]
 
 const canProcess = computed(() => {
+  // For merge action, require at least 2 files in main selection
+  if (selectedAction.value === 'merge') {
+    return selectedFiles.value.length >= 2 &&
+      selectedAction.value &&
+      !isProcessing.value
+  }
+  
+  // For other actions, require selected files and output path
   return selectedFiles.value.length > 0 &&
     pdfSettings.value.outputPath &&
     selectedAction.value &&
@@ -277,7 +337,7 @@ onMounted(async () => {
 })
 
 const handleActionSelect = (action: string) => {
-  selectedAction.value = action as 'split' | 'compress' | 'delete'
+  selectedAction.value = action as 'split' | 'compress' | 'delete' | 'merge'
 }
 
 const openSettingsDrawer = () => {
@@ -295,6 +355,10 @@ const handleSettingsValidation = (isValid: boolean, errors: string[]) => {
   settingsValidation.value = { isValid, errors }
 }
 
+const handleFileReorder = (files: { path: string; name: string; size?: number; pageCount?: number }[]) => {
+  selectedFiles.value = files
+}
+
 const triggerFileInput = async () => {
   try {
     const selected = await open({
@@ -306,22 +370,56 @@ const triggerFileInput = async () => {
     })
 
     if (selected && typeof selected === 'string') {
+      // Check for duplicates
+      if (selectedFiles.value.some(file => file.path === selected)) {
+        toast.add({
+          title: 'Duplicate File',
+          description: 'This file is already selected',
+          duration: 3000,
+          color: 'warning',
+          ui: {
+            root: 'bg-white'
+          }
+        })
+        return
+      }
+
+      // For merge, check file limit
+      if (selectedAction.value === 'merge' && selectedFiles.value.length >= 2) {
+        toast.add({
+          title: 'File Limit',
+          description: 'Maximum 2 files allowed for merging',
+          duration: 3000,
+          color: 'warning',
+          ui: {
+            root: 'bg-white'
+          }
+        })
+        return
+      }
+
+      // Get PDF page count
+      let pageCount = 0
+      try {
+        pageCount = await invoke('get_pdf_page_count', { filePath: selected }) as number
+      } catch (error) {
+        console.error('Error getting page count:', error)
+      }
+
       const fileObject = {
         path: selected,
         name: selected.split('/').pop() || selected.split('\\').pop() || 'Unknown',
-        size: undefined
+        size: undefined,
+        pageCount: pageCount
       }
 
-      selectedFiles.value = [fileObject]
-
-      // Get and store PDF page count for validation
-      try {
-        const pageCount = await invoke('get_pdf_page_count', { filePath: fileObject.path }) as number
+      if (selectedAction.value === 'merge') {
+        // For merge, add to existing files
+        selectedFiles.value.push(fileObject)
+      } else {
+        // For other actions, replace existing selection
+        selectedFiles.value = [fileObject]
         pdfPageCount.value = pageCount
-        console.log('Selected file page count:', pageCount)
-      } catch (error) {
-        console.error('Error getting page count:', error)
-        pdfPageCount.value = 0
       }
     }
   } catch (error) {
@@ -398,7 +496,8 @@ const getActionIcon = (action: string): string => {
   const iconMap: Record<string, string> = {
     split: 'i-heroicons-scissors',
     compress: 'i-heroicons-archive-box-arrow-down',
-    delete: 'i-heroicons-trash'
+    delete: 'i-heroicons-trash',
+    merge: 'i-heroicons-document-duplicate'
   }
   return iconMap[action] || 'i-heroicons-cog-6-tooth'
 }
@@ -407,7 +506,8 @@ const getActionButtonText = (action: string): string => {
   const textMap: Record<string, string> = {
     split: 'Split PDF File',
     compress: 'Compress PDF File',
-    delete: 'Delete PDF Pages'
+    delete: 'Delete PDF Pages',
+    merge: 'Merge PDF Files'
   }
   return textMap[action] || 'Process File'
 }
@@ -415,7 +515,8 @@ const getActionButtonText = (action: string): string => {
 const processPDF = async () => {
   if (!canProcess.value) return
 
-  if (pdfPageCount.value === 0) {
+  // Skip page count validation for merge action since it handles its own files
+  if (selectedAction.value !== 'merge' && pdfPageCount.value === 0) {
     toast.add({
       title: 'Error',
       description: 'Unable to determine PDF page count. Please try selecting the file again.',
@@ -486,6 +587,61 @@ const processPDF = async () => {
           root: 'bg-white'
         }
       })
+    } else if (selectedAction.value === 'merge') {
+      // Merge processing
+      if (selectedFiles.value.length < 2) {
+        toast.add({
+          title: 'Validation Error',
+          description: 'Please select at least 2 PDF files to merge',
+          duration: 4000,
+          color: 'error',
+          ui: {
+            root: 'bg-white'
+          }
+        })
+        return
+      }
+
+      // Create file paths array in order
+      const filePaths = selectedFiles.value.map(file => file.path)
+      
+      // Get default output path for merged file
+      const defaultPath = await getDefaultOutputPath()
+      const outputFileName = `merged_${Date.now()}.pdf`
+      const outputPath = defaultPath.includes('\\') ? `${defaultPath}\\${outputFileName}` : `${defaultPath}/${outputFileName}`
+
+      try {
+        const result = await invoke('do_merge_pdfs', {
+          filePaths: filePaths,
+          outputPath: outputPath
+        }) as string
+
+        toast.add({
+          title: 'Success',
+          description: result || 'PDFs merged successfully!',
+          duration: 3000,
+          color: 'success',
+          ui: {
+            root: 'bg-white'
+          }
+        })
+
+        // Clear selected files
+        selectedFiles.value = []
+      } catch (mergeError) {
+        console.error('Error merging PDFs:', mergeError)
+        toast.add({
+          title: 'Error',
+          description: 'Failed to merge PDFs. Please try again.',
+          duration: 4000,
+          color: 'error',
+          ui: {
+            root: 'bg-white'
+          }
+        })
+        return
+      }
+
     } else if (selectedAction.value === 'delete') {
 
       const validation = validatePageRange(pdfSettings.value.deletePages, pdfPageCount.value)

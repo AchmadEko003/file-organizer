@@ -21,8 +21,17 @@
       @validate="handleDeleteValidation"
     />
 
-    <!-- Output settings (common for all actions) -->
+    <MergeSettings
+      v-if="selectedAction === 'merge'"
+      v-model:merge-options="settings.mergeOptions"
+      :selected-files="selectedFiles || []"
+      @validate="handleMergeValidation"
+      @reorder="handleFileReorder"
+    />
+
+    <!-- Output settings (common for all actions except merge) -->
     <OutputSettings
+      v-if="selectedAction !== 'merge'"
       v-model:output-path="settings.outputPath"
       @validate="handleOutputValidation"
     />
@@ -34,16 +43,19 @@ import { ref, computed, watch } from 'vue'
 import SplitSettings from './SplitSettings.vue'
 import CompressSettings from './CompressSettings.vue'
 import DeleteSettings from './DeleteSettings.vue'
+import MergeSettings from './MergeSettings.vue'
 import OutputSettings from './OutputSettings.vue'
 import type { PDFSettings } from './types'
 
 interface Props {
-  selectedAction: 'split' | 'compress' | 'delete' | ''
+  selectedAction: 'split' | 'compress' | 'delete' | 'merge' | ''
   pdfPageCount: number
+  selectedFiles?: { path: string; name: string; size?: number; pageCount?: number }[]
 }
 
 interface Emits {
   (e: 'validate', isValid: boolean, errors: string[]): void
+  (e: 'file-reorder', files: { path: string; name: string; size?: number; pageCount?: number }[]): void
 }
 
 const props = defineProps<Props>()
@@ -59,6 +71,9 @@ const settings = defineModel<PDFSettings>('settings', {
     },
     compressionLevel: 'medium',
     deletePages: '',
+    mergeOptions: {
+      files: []
+    },
     outputPath: ''
   })
 })
@@ -67,11 +82,17 @@ const settings = defineModel<PDFSettings>('settings', {
 const splitValidation = ref({ isValid: true, error: undefined as string | undefined })
 const compressValidation = ref({ isValid: true, error: undefined as string | undefined })
 const deleteValidation = ref({ isValid: true, error: undefined as string | undefined })
+const mergeValidation = ref({ isValid: true, error: undefined as string | undefined })
 const outputValidation = ref({ isValid: true, error: undefined as string | undefined })
 
 // Computed overall validation
 const isValid = computed(() => {
-  // Output path is always required
+  // For merge action, output path is handled within merge settings
+  if (props.selectedAction === 'merge') {
+    return mergeValidation.value.isValid
+  }
+
+  // Output path is always required for other actions
   if (!outputValidation.value.isValid) return false
 
   // Check action-specific validation
@@ -90,7 +111,8 @@ const isValid = computed(() => {
 const validationErrors = computed(() => {
   const errors: string[] = []
   
-  if (!outputValidation.value.isValid && outputValidation.value.error) {
+  // Only check output validation for non-merge actions
+  if (props.selectedAction !== 'merge' && !outputValidation.value.isValid && outputValidation.value.error) {
     errors.push(outputValidation.value.error)
   }
 
@@ -108,6 +130,11 @@ const validationErrors = computed(() => {
     case 'delete':
       if (!deleteValidation.value.isValid && deleteValidation.value.error) {
         errors.push(deleteValidation.value.error)
+      }
+      break
+    case 'merge':
+      if (!mergeValidation.value.isValid && mergeValidation.value.error) {
+        errors.push(mergeValidation.value.error)
       }
       break
   }
@@ -134,6 +161,15 @@ const handleCompressValidation = (valid: boolean, error?: string) => {
 const handleDeleteValidation = (valid: boolean, error?: string) => {
   deleteValidation.value = { isValid: valid, error }
   emitValidation()
+}
+
+const handleMergeValidation = (valid: boolean, errors: string[]) => {
+  mergeValidation.value = { isValid: valid, error: errors.join(', ') }
+  emitValidation()
+}
+
+const handleFileReorder = (files: { path: string; name: string; size?: number; pageCount?: number }[]) => {
+  emit('file-reorder', files)
 }
 
 const handleOutputValidation = (valid: boolean, error?: string) => {

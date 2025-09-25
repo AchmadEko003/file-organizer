@@ -28,6 +28,7 @@ pub fn run() {
             pdf::get_pdf_page_count,
             pdf::do_split,
             pdf::do_delete_pages,
+            pdf::do_merge_pdfs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
