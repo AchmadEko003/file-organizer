@@ -45,17 +45,6 @@
         "type": "downloadBootstrapper"
       },
       "wix": null
-    },
-    "linux": {
-      "rpm": {
-        "epoch": 0,
-        "files": {},
-        "release": "1",
-        "preInstallScript": "~/Project/file-organizer/src-tauri/scripts/prescript.sh",
-        "postInstallScript": "~/Project/file-organizer/src-tauri/scripts/postscript.sh",
-        "preRemoveScript": "~/Project/file-organizer/src-tauri/scripts/prescript.sh",
-        "postRemoveScript": "~/Project/file-organizer/src-tauri/scripts/postscript.sh"
-      }
     }
   }
 }
