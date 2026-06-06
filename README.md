@@ -60,9 +60,3 @@ Note: platform-specific packaging requires Tauri prerequisites for your OS. See 
 2. Create a feature branch
 3. Make changes and add tests where appropriate
 4. Open a pull request describing your change
-
-## Support / Donate
-
-If you find File Organizer helpful and want to support continued development, you can donate via Saweria.
-
-[Support on Saweria](https://saweria.co/madko003)
